@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { SafeAreaTopScrim } from "./safe-area";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
-import { api, type ApiResponse } from "./api";
+import { api, encodeSave, type ApiResponse } from "./api";
 import { classifyDrawing, isConfidentMatch, LETTERS, type Letter } from "./draw-classifier";
 import bSound from "./assets/letters/b.mp3";
 import dSound from "./assets/letters/d.mp3";
@@ -474,6 +474,27 @@ function WriteItGame({ state, onBack, onOpenShop, onRecord }: { state: GameState
 function Scoreboard({ state, onReset, resetting }: { state: GameState; onReset: () => void; resetting: boolean }) {
   const [armed, setArmed] = useState(false);
   const [open, setOpen] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [shareNote, setShareNote] = useState<string | null>(null);
+  const shareProgress = async () => {
+    setSharing(true);
+    setShareNote(null);
+    try {
+      const link = `${window.location.origin}${window.location.pathname}#save=${encodeSave(state)}`;
+      if (typeof navigator.share === "function") {
+        await navigator.share({ title: "Letter Reversal progress", url: link });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(link);
+        setShareNote("Progress link copied — open it on the iPad to import.");
+      } else {
+        setShareNote("Sharing isn't available in this browser.");
+      }
+    } catch {
+      // The share sheet was dismissed; nothing to report.
+    } finally {
+      setSharing(false);
+    }
+  };
   const rounds = state.wins + state.losses;
   return <section className={`stats-panel ${open ? "open" : ""}`}>
     <button className="stats-toggle" type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
@@ -494,6 +515,8 @@ function Scoreboard({ state, onReset, resetting }: { state: GameState; onReset: 
       </div>
       {!armed ? <button className="reset-link" type="button" onClick={() => setArmed(true)}>Reset progress…</button> :
         <div className="reset-row"><span>Erase coins, stats, and trophies?</span><button type="button" onClick={() => { onReset(); setArmed(false); }} disabled={resetting}>Yes, reset</button><button type="button" onClick={() => setArmed(false)}>Cancel</button></div>}
+      <button className="reset-link" type="button" onClick={() => void shareProgress()} disabled={sharing}>{sharing ? "Preparing link…" : "Share progress to another device…"}</button>
+      {shareNote && <p className="share-note" role="status">{shareNote}</p>}
     </div>}
   </section>;
 }
@@ -517,6 +540,9 @@ export function App() {
   const [shopOpen, setShopOpen] = useState(false);
   const [shopMessage, setShopMessage] = useState<string | null>(null);
   const [buyingTrophy, setBuyingTrophy] = useState<TrophyId | null>(null);
+  const [importCode, setImportCode] = useState<string | null>(null);
+  const [importError, setImportError] = useState(false);
+  const [importDone, setImportDone] = useState(false);
 
   const game = useQuery({ queryKey: ["game-state"], queryFn: () => api.getGameState({}) });
   const state = game.data;
@@ -650,6 +676,26 @@ export function App() {
     if (view === "bed") drawingContext(canvasRef.current);
   }, [view]);
 
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.startsWith("#save=")) {
+      setImportCode(hash.slice("#save=".length));
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    }
+  }, []);
+
+  const doImport = async () => {
+    if (!importCode) return;
+    const result = await api.importSave({ code: importCode });
+    setImportCode(null);
+    if (result.ok) {
+      queryClient.setQueryData(["game-state"], result.state);
+      setImportDone(true);
+    } else {
+      setImportError(true);
+    }
+  };
+
   const pointFromEvent = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return null;
@@ -712,6 +758,12 @@ export function App() {
 
   return <div className="game-shell">
     <SafeAreaTopScrim backgroundColor="var(--bg)" />
+    {importCode && <div className="import-banner" role="alertdialog" aria-label="Import progress">
+      <div><strong>Progress link opened.</strong><span>Import coins, trophies, and scores from your other device? This replaces this device's progress.</span></div>
+      <div className="import-actions"><button type="button" onClick={() => void doImport()}>Import</button><button type="button" onClick={() => setImportCode(null)}>Not now</button></div>
+    </div>}
+    {importDone && <p className="import-note" role="status">Progress imported! <button type="button" onClick={() => setImportDone(false)}>OK</button></p>}
+    {importError && <p className="import-note" role="alert">That progress link didn't work. <button type="button" onClick={() => setImportError(false)}>OK</button></p>}
     {confettiKey > 0 && <div className="confetti-layer" key={confettiKey} aria-hidden="true">{confetti.map((piece) => <i key={piece.id} style={{ left: piece.left, animationDelay: piece.delay, translate: piece.drift, background: piece.color }} />)}</div>}
 
     {view === "menu" && <GameMenu

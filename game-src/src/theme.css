@@ -412,3 +412,14 @@ button { font: inherit; }
   .practice-tile:last-child { grid-column: 1 / -1; }
   .practice-header { padding-inline: max(18px, calc((100% - 690px) / 2)); }
 }
+
+/* Device-to-device progress transfer */
+.import-banner { margin: 12px 12px 0; padding: 14px; border: 2px solid var(--border); border-radius: 14px; background: var(--surface); display: grid; gap: 10px; }
+.import-banner strong { display: block; font-size: 15px; }
+.import-banner span { font-size: 13px; color: var(--dim); }
+.import-actions { display: flex; gap: 8px; }
+.import-actions button { min-height: 44px; padding: 0 16px; border-radius: 10px; border: 2px solid var(--border); background: var(--surface); color: var(--text); font-weight: 800; }
+.import-actions button:first-child { background: var(--accent, #2a75bb); border-color: var(--accent, #2a75bb); color: #fff; }
+.import-note { margin: 12px 12px 0; padding: 10px 14px; border-radius: 12px; background: var(--surface); border: 2px solid var(--border); font-size: 13px; font-weight: 700; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.import-note button { border: 0; background: transparent; text-decoration: underline; font-weight: 800; color: var(--text); min-height: 44px; }
+.share-note { margin: 10px 0 0; font-size: 13px; color: var(--dim); }

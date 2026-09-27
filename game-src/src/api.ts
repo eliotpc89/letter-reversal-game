@@ -110,46 +110,74 @@ function isGameState(value: unknown): value is GameState {
   );
 }
 
+function sanitizeState(parsed: unknown): GameState | null {
+  if (!isGameState(parsed)) return null;
+  // Rebuild through the default shape so older saved states pick up any
+  // new fields, and every call gets fresh objects (no shared references).
+  const fresh = defaultState();
+  const byLetter = new Map(
+    parsed.letters.map((row: TrackedLetter) => [row.letter, row]),
+  );
+  const byGame = new Map(
+    parsed.practiceStats.map((row: PracticeStat) => [row.gameId, row]),
+  );
+  return {
+    ...fresh,
+    ...parsed,
+    letters: fresh.letters.map((row) => {
+      const saved = byLetter.get(row.letter);
+      return {
+        letter: row.letter,
+        attempts: typeof saved?.attempts === "number" ? saved.attempts : 0,
+        correct: typeof saved?.correct === "number" ? saved.correct : 0,
+      };
+    }),
+    practiceStats: fresh.practiceStats.map((row) => {
+      const saved = byGame.get(row.gameId);
+      return {
+        gameId: row.gameId,
+        attempts: typeof saved?.attempts === "number" ? saved.attempts : 0,
+        correct: typeof saved?.correct === "number" ? saved.correct : 0,
+      };
+    }),
+    unlockedTrophies: parsed.unlockedTrophies.filter(
+      (id): id is TrophyId => typeof id === "string" && id in TROPHY_PRICES,
+    ),
+  };
+}
+
 function loadState(): GameState {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultState();
-    const parsed: unknown = JSON.parse(raw);
-    if (!isGameState(parsed)) return defaultState();
-    // Rebuild through the default shape so older saved states pick up any
-    // new fields, and every call gets fresh objects (no shared references).
-    const fresh = defaultState();
-    const byLetter = new Map(
-      parsed.letters.map((row: TrackedLetter) => [row.letter, row]),
-    );
-    const byGame = new Map(
-      parsed.practiceStats.map((row: PracticeStat) => [row.gameId, row]),
-    );
-    return {
-      ...fresh,
-      ...parsed,
-      letters: fresh.letters.map((row) => {
-        const saved = byLetter.get(row.letter);
-        return {
-          letter: row.letter,
-          attempts: typeof saved?.attempts === "number" ? saved.attempts : 0,
-          correct: typeof saved?.correct === "number" ? saved.correct : 0,
-        };
-      }),
-      practiceStats: fresh.practiceStats.map((row) => {
-        const saved = byGame.get(row.gameId);
-        return {
-          gameId: row.gameId,
-          attempts: typeof saved?.attempts === "number" ? saved.attempts : 0,
-          correct: typeof saved?.correct === "number" ? saved.correct : 0,
-        };
-      }),
-      unlockedTrophies: parsed.unlockedTrophies.filter(
-        (id): id is TrophyId => typeof id === "string" && id in TROPHY_PRICES,
-      ),
-    };
+    return sanitizeState(JSON.parse(raw)) ?? defaultState();
   } catch {
     return defaultState();
+  }
+}
+
+function toBase64Url(json: string): string {
+  const binary = unescape(encodeURIComponent(json));
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function fromBase64Url(code: string): string {
+  let s = code.replace(/-/g, "+").replace(/_/g, "/");
+  while (s.length % 4 !== 0) s += "=";
+  return decodeURIComponent(escape(atob(s)));
+}
+
+/** Serialize a save into a short URL-safe code for device-to-device transfer. */
+export function encodeSave(state: GameState): string {
+  return toBase64Url(JSON.stringify(state));
+}
+
+/** Parse a transferred save code; returns null when the code is invalid. */
+export function decodeSave(code: string): GameState | null {
+  try {
+    return sanitizeState(JSON.parse(fromBase64Url(code)));
+  } catch {
+    return null;
   }
 }
 
@@ -254,5 +282,15 @@ export const api = {
     const next = defaultState();
     saveState(next);
     return next;
+  },
+
+  async importSave(args: { code: string }): Promise<{
+    ok: boolean;
+    state: GameState;
+  }> {
+    const next = decodeSave(args.code);
+    if (!next) return { ok: false, state: loadState() };
+    saveState(next);
+    return { ok: true, state: next };
   },
 };
