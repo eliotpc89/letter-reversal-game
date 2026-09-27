@@ -1,10 +1,11 @@
-name: OpenAI voice samples
+name: Generate OpenAI phonics audio library
 
 on:
   workflow_dispatch:
   push:
     paths:
       - '.github/workflows/openai-voice-samples.yml'
+      - 'scripts/generate_openai_audio.py'
 
 permissions:
   contents: read
@@ -12,51 +13,31 @@ permissions:
 jobs:
   generate:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 120
     steps:
-      - name: Generate five AI voice samples
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Generate and validate every source MP3
         env:
           OPENAI_API_KEY: ${{ secrets.openaivoice }}
+        run: python3 scripts/generate_openai_audio.py
+      - name: Build the site and refresh docs/
+        working-directory: game-src
         run: |
-          python3 - <<'PY'
-          import json, os, pathlib, urllib.request, urllib.error
-          key = os.environ.get("OPENAI_API_KEY", "").strip()
-          if not key:
-              raise SystemExit("Missing repository Actions secret: openaivoice")
-          output = pathlib.Path("voice-samples")
-          output.mkdir()
-          samples = [("01-kay", "kay"), ("02-cup", "cup"), ("03-cud", "cud"), ("04-luck", "luck"), ("05-puck", "puck")]
-          for filename, word in samples:
-              body = json.dumps({
-                  "model": "gpt-4o-mini-tts",
-                  "voice": "marin",
-                  "input": word,
-                  "response_format": "mp3",
-                  "instructions": "Say only the supplied word once, in a clear neutral General American accent for a child's phonics game. No introduction, spelling, explanation, or extra sounds. Use natural pronunciation at a gently measured pace."
-              }).encode()
-              request = urllib.request.Request("https://api.openai.com/v1/audio/speech", data=body,
-                  headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"})
-              try:
-                  with urllib.request.urlopen(request, timeout=90) as response:
-                      audio = response.read()
-              except urllib.error.HTTPError as error:
-                  try:
-                      reason = json.loads(error.read()).get("error", {}).get("code")
-                  except Exception:
-                      reason = None
-                  safe_reason = reason if reason in ("insufficient_quota", "rate_limit_exceeded", "invalid_api_key", "model_not_found") else "unspecified"
-                  raise SystemExit("OpenAI speech request failed: HTTP " + str(error.code) + " (" + safe_reason + ")") from None
-              if len(audio) < 100:
-                  raise SystemExit("OpenAI returned an unexpectedly short audio response")
-              (output / (filename + ".mp3")).write_bytes(audio)
-              print("Generated " + filename + ".mp3")
-          rows = "".join('<p>' + word + '<br><audio controls src="' + filename + '.mp3"></audio></p>' for filename, word in samples)
-          (output / "index.html").write_text('<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Voice samples</title><h1>Phonics voice samples</h1><p>These voices are AI-generated. First sample is the letter name K.</p>' + rows + '</html>')
-          PY
-      - name: Save playable samples
+          bun install --frozen-lockfile
+          bun run build
+      - name: Save the playable preview and full rebuilt site
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: openai-voice-samples
-          path: voice-samples/
-          if-no-files-found: error
+          name: openai-audio-library-preview
+          path: |
+            audio-review/
+            game-src/src/assets/
+            docs/
+          if-no-files-found: warn
           retention-days: 14
