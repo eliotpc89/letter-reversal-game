@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { SafeAreaTopScrim } from "./safe-area";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { api, type ApiResponse } from "./api";
+import { classifyDrawing, isConfidentMatch, LETTERS, type Letter } from "./draw-classifier";
 import bSound from "./assets/letters/b.mp3";
 import dSound from "./assets/letters/d.mp3";
 import pSound from "./assets/letters/p.mp3";
@@ -12,10 +13,9 @@ import cSound from "./assets/letters/c.mp3";
 import kSound from "./assets/letters/k.mp3";
 import { VOWEL_AUDIO } from "./assets/vowels";
 
-type Letter = "b" | "d" | "p" | "q" | "n" | "u" | "c" | "k";
 type TrophyId = "star" | "one-up" | "fire-flower" | "tanooki-suit" | "green-pipe" | "gold-crown" | "master-sword" | "hylian-shield" | "heros-cap" | "star-rod" | "cappy" | "yoshi" | "poke-ball" | "blue-shell" | "triforce" | "x-wing" | "poop-emoji" | "starfox-laser";
 type GameState = ApiResponse<typeof api, "getGameState">;
-type Verdict = "correct" | "wrong" | null;
+type Verdict = "correct" | "wrong" | "retry" | null;
 type View = "menu" | "bed" | "sound-sort" | "pair-picker" | "write-it";
 type PracticeGameId = "sound-sort" | "pair-picker" | "write-it";
 type Vowel = "o" | "u";
@@ -43,7 +43,6 @@ const TROPHIES: Trophy[] = [
   { id: "starfox-laser", name: "Star Fox Laser", price: 9999, color: "#8fa3b8" },
 ];
 
-const LETTERS: Letter[] = ["b", "d", "p", "q", "n", "u", "c", "k"];
 const SOUNDS: Record<Letter, string> = { b: bSound, d: dSound, p: pSound, q: qSound, n: nSound, u: uSound, c: cSound, k: kSound };
 const SHORT_O_WORDS = [
   "cot", "cop", "cob", "cod", "bog", "dog", "hog", "lock", "dock", "sock", "mock", "pop",
@@ -60,6 +59,9 @@ const PRACTICE_WORDS: PracticeWord[] = [
   ...SHORT_O_WORDS.map((word) => ({ word, vowel: "o" as const, vowelIndex: word.indexOf("o"), audio: VOWEL_AUDIO[word] })),
   ...SHORT_U_WORDS.map((word) => ({ word, vowel: "u" as const, vowelIndex: word.indexOf("u"), audio: VOWEL_AUDIO[word] })),
 ];
+// "up" has no middle vowel, so it doesn't fit sound-sort's "which vowel is in
+// the middle?" prompt. It stays in the other games' pools.
+const SOUND_SORT_WORDS = PRACTICE_WORDS.filter((item) => item.word !== "up");
 const WRITE_WORDS = PRACTICE_WORDS.filter((item) => item.word.length <= 4);
 const WORD_AUDIO = new Map(PRACTICE_WORDS.map((item) => [item.word, item.audio]));
 const PAIRS = [
@@ -69,7 +71,6 @@ const PAIRS = [
 ] as const;
 const DEFAULT_PAIR: readonly [string, string] = ["cot", "cut"];
 const DEFAULT_WORD: PracticeWord = { word: "cot", vowel: "o", vowelIndex: 1, audio: VOWEL_AUDIO.cot };
-const TEMPLATE_FONTS = ['"Avenir Next"', '"Trebuchet MS"', '"Comic Sans MS"', 'sans-serif'];
 
 function shuffled<T>(values: readonly T[]): T[] {
   return [...values].sort(() => Math.random() - 0.5);
@@ -136,129 +137,6 @@ function clearCanvas(canvas: HTMLCanvasElement | null) {
   ctx?.clearRect(0, 0, canvas.width, canvas.height);
 }
 
-function alphaMask(canvas: HTMLCanvasElement, size = 52): Uint8Array | null {
-  const source = canvas.getContext("2d", { willReadFrequently: true });
-  if (!source) return null;
-  const data = source.getImageData(0, 0, canvas.width, canvas.height).data;
-  let minX = canvas.width;
-  let minY = canvas.height;
-  let maxX = -1;
-  let maxY = -1;
-  for (let y = 0; y < canvas.height; y += 2) {
-    for (let x = 0; x < canvas.width; x += 2) {
-      const alpha = data[(y * canvas.width + x) * 4 + 3] ?? 0;
-      if (alpha > 24) {
-        minX = Math.min(minX, x); minY = Math.min(minY, y);
-        maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
-      }
-    }
-  }
-  if (maxX < minX || maxY < minY) return null;
-  const width = Math.max(1, maxX - minX + 1);
-  const height = Math.max(1, maxY - minY + 1);
-  const pad = 5;
-  const scale = Math.min((size - pad * 2) / width, (size - pad * 2) / height);
-  const out = document.createElement("canvas");
-  out.width = size; out.height = size;
-  const outCtx = out.getContext("2d", { willReadFrequently: true });
-  if (!outCtx) return null;
-  outCtx.drawImage(canvas, minX, minY, width, height, (size - width * scale) / 2, (size - height * scale) / 2, width * scale, height * scale);
-  const pixels = outCtx.getImageData(0, 0, size, size).data;
-  const mask = new Uint8Array(size * size);
-  for (let i = 0; i < mask.length; i += 1) mask[i] = (pixels[i * 4 + 3] ?? 0) > 35 ? 1 : 0;
-  return mask;
-}
-
-function templateMask(letter: Letter, font: string, size = 52): Uint8Array | null {
-  const canvas = document.createElement("canvas");
-  canvas.width = 240; canvas.height = 240;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return null;
-  ctx.fillStyle = "#14213d";
-  ctx.font = `700 190px ${font}`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(letter, 120, 116);
-  return alphaMask(canvas, size);
-}
-
-function points(mask: Uint8Array, size: number): Array<[number, number]> {
-  const result: Array<[number, number]> = [];
-  for (let i = 0; i < mask.length; i += 1) {
-    if (mask[i]) result.push([i % size, Math.floor(i / size)]);
-  }
-  return result;
-}
-
-function directedDistance(from: Array<[number, number]>, to: Array<[number, number]>, size: number): number {
-  if (from.length === 0 || to.length === 0) return 1;
-  let total = 0;
-  const stride = Math.max(1, Math.floor(from.length / 420));
-  let samples = 0;
-  for (let i = 0; i < from.length; i += stride) {
-    const source = from[i];
-    if (!source) continue;
-    let best = Number.POSITIVE_INFINITY;
-    for (const target of to) {
-      const dx = source[0] - target[0];
-      const dy = source[1] - target[1];
-      const distance = dx * dx + dy * dy;
-      if (distance < best) best = distance;
-      if (best === 0) break;
-    }
-    total += Math.sqrt(best) / size;
-    samples += 1;
-  }
-  return samples > 0 ? total / samples : 1;
-}
-
-function gridFeatures(mask: Uint8Array, size: number): number[] {
-  const cells = 4;
-  const values: number[] = [];
-  for (let gy = 0; gy < cells; gy += 1) {
-    for (let gx = 0; gx < cells; gx += 1) {
-      let ink = 0;
-      let count = 0;
-      const x0 = Math.floor(gx * size / cells);
-      const x1 = Math.floor((gx + 1) * size / cells);
-      const y0 = Math.floor(gy * size / cells);
-      const y1 = Math.floor((gy + 1) * size / cells);
-      for (let y = y0; y < y1; y += 1) for (let x = x0; x < x1; x += 1) {
-        ink += mask[y * size + x] ?? 0;
-        count += 1;
-      }
-      values.push(count ? ink / count : 0);
-    }
-  }
-  return values;
-}
-
-function maskScore(a: Uint8Array, b: Uint8Array, size: number): number {
-  const aPoints = points(a, size);
-  const bPoints = points(b, size);
-  const shape = directedDistance(aPoints, bPoints, size) * 0.6 + directedDistance(bPoints, aPoints, size) * 0.4;
-  const af = gridFeatures(a, size);
-  const bf = gridFeatures(b, size);
-  let feature = 0;
-  for (let i = 0; i < af.length; i += 1) feature += Math.abs((af[i] ?? 0) - (bf[i] ?? 0));
-  return shape + (feature / af.length) * 0.72;
-}
-
-function classifyDrawing(canvas: HTMLCanvasElement): { letter: Letter; score: number } | null {
-  const size = 52;
-  const user = alphaMask(canvas, size);
-  if (!user) return null;
-  let best: { letter: Letter; score: number } | null = null;
-  for (const letter of LETTERS) {
-    for (const font of TEMPLATE_FONTS) {
-      const template = templateMask(letter, font, size);
-      if (!template) continue;
-      const score = maskScore(user, template, size);
-      if (!best || score < best.score) best = { letter, score };
-    }
-  }
-  return best;
-}
 
 function playJackpot(ctx: AudioContext | null) {
   if (!ctx || ctx.state !== "running") return;
@@ -339,7 +217,7 @@ function PrizeShop({ state, open, onClose, onBuy, buying, message }: { state: Ga
 
 function GameMenu({ state, onPlay, onOpenShop }: { state: GameState | undefined; onPlay: (view: View) => void; onOpenShop: () => void }) {
   const games: Array<{ view: View; label: string; title: string; note: string; art: string; className: string }> = [
-    { view: "sound-sort", label: "Play O or U", title: "o or u?", note: `${PRACTICE_WORDS.length} short-vowel words in the mix.`, art: "ŏ  ŭ", className: "vowel-tile" },
+    { view: "sound-sort", label: "Play O or U", title: "o or u?", note: `${SOUND_SORT_WORDS.length} short-vowel words in the mix.`, art: "ŏ  ŭ", className: "vowel-tile" },
     { view: "pair-picker", label: "Play Pair Picker", title: "Pair picker", note: "Listen closely, then sort the word.", art: "cot · cut", className: "pair-tile" },
     { view: "write-it", label: "Play Write It", title: "Write it", note: "Build the word and mark the vowel.", art: "mŭck", className: "write-tile" },
   ];
@@ -463,7 +341,7 @@ function RoundResult({ verdict, onNext, wrongMessage = "Listen once more next ro
 
 function SoundSortGame({ state, onBack, onOpenShop, onRecord }: { state: GameState; onBack: () => void; onOpenShop: () => void; onRecord: (gameId: PracticeGameId, correct: boolean) => Promise<void> }) {
   const play = useAudioClip();
-  const [target, setTarget] = useState<PracticeWord>(() => PRACTICE_WORDS[Math.floor(Math.random() * PRACTICE_WORDS.length)] ?? DEFAULT_WORD);
+  const [target, setTarget] = useState<PracticeWord>(() => SOUND_SORT_WORDS[Math.floor(Math.random() * SOUND_SORT_WORDS.length)] ?? DEFAULT_WORD);
   const [verdict, setVerdict] = useState<Verdict>(null);
   const [busy, setBusy] = useState(false);
   const hear = () => void play(target.audio).catch(() => undefined);
@@ -474,7 +352,7 @@ function SoundSortGame({ state, onBack, onOpenShop, onRecord }: { state: GameSta
     try { await onRecord("sound-sort", right); setVerdict(right ? "correct" : "wrong"); } finally { setBusy(false); }
   };
   const next = () => {
-    setTarget((old) => shuffled(PRACTICE_WORDS.filter((item) => item.word !== old.word))[0] ?? DEFAULT_WORD);
+    setTarget((old) => shuffled(SOUND_SORT_WORDS.filter((item) => item.word !== old.word))[0] ?? DEFAULT_WORD);
     setVerdict(null);
   };
   return <>
@@ -812,7 +690,11 @@ export function App() {
     if (!canvas || !hasInk || verdict || record.isPending) return;
     activateAudio();
     const match = classifyDrawing(canvas);
-    record.mutate(match?.letter === target);
+    if (!match || !isConfidentMatch(match.score)) {
+      setVerdict("retry"); // too far from every template: redraw, no coins change
+      return;
+    }
+    record.mutate(match.letter === target);
   };
 
   const savePractice = useCallback(async (gameId: PracticeGameId, correct: boolean) => {
@@ -862,13 +744,17 @@ export function App() {
           <canvas ref={canvasRef} width={700} height={590} className="drawing-canvas" aria-label="Drawing pad" onPointerDown={beginDraw} onPointerMove={moveDraw} onPointerUp={endDraw} onPointerCancel={endDraw} />
           {!hasInk && <div className="draw-hint" aria-hidden="true"><span>Draw here</span><span className="finger-trail">⌁</span></div>}
           {verdict && <div className={`verdict ${verdict}`} role="status">
-            {verdict === "correct" ? <><div className="burst"><CoinIcon /><CoinIcon /><CoinIcon /></div><strong>JACKPOT!</strong><span>+5 coins</span></> : <><strong>WHOMP WHOMP</strong><span>−3 coins</span></>}
+            {verdict === "correct" ? <><div className="burst"><CoinIcon /><CoinIcon /><CoinIcon /></div><strong>JACKPOT!</strong><span>+5 coins</span></> :
+              verdict === "wrong" ? <><strong>WHOMP WHOMP</strong><span>−3 coins</span></> :
+              <><strong>Hmm, try again!</strong><span>That doesn&apos;t look like a letter yet. No coins lost.</span></>}
           </div>}
           <button className="clear-button" type="button" onClick={clear} disabled={!hasInk || !!verdict || record.isPending} aria-label="Clear drawing">Clear</button>
         </section>
 
         {record.isError && <p className="error-note" role="alert">That round didn’t save. Tap “Check it!” to try again.</p>}
-        {!verdict ? <button className="check-button" type="button" onClick={check} disabled={!hasInk || record.isPending}>{record.isPending ? "Checking…" : "Check it!"}</button> : <button className="next-button" type="button" onClick={nextRound}>Next letter <span aria-hidden="true">→</span></button>}
+        {!verdict ? <button className="check-button" type="button" onClick={check} disabled={!hasInk || record.isPending}>{record.isPending ? "Checking…" : "Check it!"}</button> :
+          verdict === "retry" ? <button className="next-button" type="button" onClick={clear}>Try again <span aria-hidden="true">→</span></button> :
+          <button className="next-button" type="button" onClick={nextRound}>Next letter <span aria-hidden="true">→</span></button>}
         {state ? <><TrophyCase owned={state.unlockedTrophies} onOpen={() => { setShopMessage(null); setShopOpen(true); }} /><Scoreboard state={state} onReset={() => reset.mutate()} resetting={reset.isPending} /></> : <div className="stats-loading">{game.isError ? "Progress couldn’t load yet." : "Loading your coins…"}</div>}
       </main>
     </>}

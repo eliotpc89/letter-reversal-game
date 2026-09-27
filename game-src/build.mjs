@@ -3,12 +3,12 @@
 // reserved for the hosted web-artifact pipeline): this produces a plain
 // static ./dist directory for GitHub Pages.
 //
-// NOTE: the space's own source of truth stays in
-// ~/workspace/ts-spaces/letter-reversal-game (built only via the artifact
-// tools). This directory is a deployment export: client source copied over,
-// server actions replaced by the localStorage layer in src/api.ts.
+// This directory is the source of truth for the published game: client
+// source plus the localStorage layer in src/api.ts (no backend, no login).
+// `bun run build` compiles ./dist and then refreshes ../docs, which is what
+// GitHub Pages serves.
 
-import { rm } from "node:fs/promises";
+import { cp, mkdir, rm } from "node:fs/promises";
 import { basename } from "node:path";
 import tailwindPlugin from "bun-plugin-tailwind";
 
@@ -64,3 +64,11 @@ if (assetFiles.length > 0) {
 }
 
 console.log(`built ${OUTDIR} OK`);
+
+// Publish step: refresh the GitHub Pages output that lives next to this
+// source tree, so one command rebuilds the live site.
+const DOCS = new URL("../docs/", import.meta.url);
+await rm(DOCS, { recursive: true, force: true });
+await mkdir(DOCS, { recursive: true });
+await cp(new URL("./dist/", import.meta.url), DOCS, { recursive: true });
+console.log("synced ../docs OK");

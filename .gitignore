@@ -1,5 +1,8 @@
-dist/
-src/
-build.mjs
-index.html
+# Local build working copies at the repo root (not part of the repo).
+/src/
+/build.mjs
+/index.html
+
+# Install/build outputs anywhere in the tree.
 node_modules
+dist/
