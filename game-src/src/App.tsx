@@ -434,7 +434,7 @@ function WriteItGame({ state, onBack, onOpenShop, onRecord }: { state: GameState
   const isComplete = built.length === target.word.length;
   const hear = () => void play(target.audio).catch(() => undefined);
   const check = async () => {
-    if (busy || verdict || !isComplete) return;
+    if (busy || verdict || !isComplete || marked === null) return;
     const right = built === target.word && marked === target.vowelIndex;
     if (!right) {
       setWrongMessage(marked === null
@@ -460,11 +460,11 @@ function WriteItGame({ state, onBack, onOpenShop, onRecord }: { state: GameState
             return <button type="button" key={index} className={marked === index ? "marked" : ""} disabled={!char || !!verdict} onClick={() => { if (char === "o" || char === "u") setMarked(index); }} aria-label={char ? `${char}${marked === index ? ", marked with breve" : ", tap to mark if this is the vowel"}` : "Empty letter slot"}>{char}</button>;
           })}
         </div>
-        <p className={`mark-prompt ${isComplete && marked === null ? "needs-mark" : ""}`} role="status">{!isComplete ? "Build the whole word, then tap its vowel." : marked === null ? "Now tap the vowel to add the breve — or check your answer." : "Breve added. Check your word!"}</p>
+        <p className={`mark-prompt ${isComplete && marked === null ? "needs-mark" : ""}`} role="status">{!isComplete ? "Build the whole word, then tap its vowel." : marked === null ? "Now tap the vowel to add the breve." : "Breve added. Check your word!"}</p>
         <div className="letter-bank" aria-label="Letter choices">{bank.map((letter, index) => <button type="button" key={`${letter}-${index}`} disabled={selected.includes(index) || !!verdict} onClick={() => setSelected((old) => [...old, index])}>{letter}</button>)}</div>
         <div className="write-actions"><button type="button" onClick={() => { setSelected((old) => old.slice(0, -1)); setMarked(null); }} disabled={selected.length === 0 || !!verdict}>Backspace</button><button type="button" onClick={() => { setSelected([]); setMarked(null); }} disabled={selected.length === 0 || !!verdict}>Clear</button></div>
       </section>
-      {!verdict && <button className="practice-check" type="button" onClick={() => void check()} disabled={busy || !isComplete}>{busy ? "Checking…" : isComplete ? "Check it!" : "Build the word first"}</button>}
+      {!verdict && <button className="practice-check" type="button" onClick={() => void check()} disabled={busy || !isComplete || marked === null}>{busy ? "Checking…" : !isComplete ? "Build the word first" : marked === null ? "Tap the vowel first" : "Check it!"}</button>}
       {verdict && <RoundResult verdict={verdict} onNext={next} wrongMessage={wrongMessage} />}
       <p className="grownup-tip">After building it, underline the whole closed syllable with a finger.</p>
     </main>
