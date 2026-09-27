@@ -1,0 +1,57 @@
+name: OpenAI voice samples
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/openai-voice-samples.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Generate five AI voice samples
+        env:
+          OPENAI_API_KEY: ${{ secrets.openaivoice }}
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, urllib.request, urllib.error
+          key = os.environ.get("OPENAI_API_KEY", "").strip()
+          if not key:
+              raise SystemExit("Missing repository Actions secret: openaivoice")
+          output = pathlib.Path("voice-samples")
+          output.mkdir()
+          samples = [("01-kay", "kay"), ("02-cup", "cup"), ("03-cud", "cud"), ("04-luck", "luck"), ("05-puck", "puck")]
+          for filename, word in samples:
+              body = json.dumps({
+                  "model": "gpt-4o-mini-tts",
+                  "voice": "marin",
+                  "input": word,
+                  "response_format": "mp3",
+                  "instructions": "Say only the supplied word once, in a clear neutral General American accent for a child's phonics game. No introduction, spelling, explanation, or extra sounds. Use natural pronunciation at a gently measured pace."
+              }).encode()
+              request = urllib.request.Request("https://api.openai.com/v1/audio/speech", data=body,
+                  headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"})
+              try:
+                  with urllib.request.urlopen(request, timeout=90) as response:
+                      audio = response.read()
+              except urllib.error.HTTPError as error:
+                  raise SystemExit("OpenAI speech request failed: HTTP " + str(error.code)) from None
+              if len(audio) < 100:
+                  raise SystemExit("OpenAI returned an unexpectedly short audio response")
+              (output / (filename + ".mp3")).write_bytes(audio)
+              print("Generated " + filename + ".mp3")
+          rows = "".join('<p>' + word + '<br><audio controls src="' + filename + '.mp3"></audio></p>' for filename, word in samples)
+          (output / "index.html").write_text('<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Voice samples</title><h1>Phonics voice samples</h1><p>These voices are AI-generated. First sample is the letter name K.</p>' + rows + '</html>')
+          PY
+      - name: Save playable samples
+        uses: actions/upload-artifact@v4
+        with:
+          name: openai-voice-samples
+          path: voice-samples/
+          if-no-files-found: error
+          retention-days: 14
