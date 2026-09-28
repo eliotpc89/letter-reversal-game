@@ -25,10 +25,11 @@ export type TrophyId =
   | "x-wing"
   | "poop-emoji"
   | "starfox-laser";
-export type PracticeGameId = "sound-sort" | "pair-picker" | "write-it" | "math-blasters";
+export type PracticeGameId = "sound-sort" | "pair-picker" | "write-it" | "math-blasters" | "sound-blaster";
+export type Vowel = "o" | "u";
 
 const LETTERS: Letter[] = ["b", "d", "p", "q", "n", "u", "c", "k"];
-const PRACTICE_GAMES: PracticeGameId[] = ["sound-sort", "pair-picker", "write-it", "math-blasters"];
+const PRACTICE_GAMES: PracticeGameId[] = ["sound-sort", "pair-picker", "write-it", "math-blasters", "sound-blaster"];
 const TROPHY_PRICES: Record<TrophyId, number> = {
   star: 15,
   "one-up": 30,
@@ -47,7 +48,7 @@ const TROPHY_PRICES: Record<TrophyId, number> = {
   triforce: 750,
   "x-wing": 900,
   "poop-emoji": 1200,
-  "starfox-laser": 9999,
+  "starfox-laser": 800,
 };
 
 export interface TrackedLetter {
@@ -62,6 +63,14 @@ export interface PracticeStat {
   correct: number;
 }
 
+export interface WordStat {
+  word: string;
+  vowel: Vowel;
+  attempts: number;
+  correct: number;
+  misses: number;
+}
+
 export interface GameState {
   coins: number;
   totalEarned: number;
@@ -72,6 +81,7 @@ export interface GameState {
   bestStreak: number;
   letters: TrackedLetter[];
   practiceStats: PracticeStat[];
+  wordStats: WordStat[];
   unlockedTrophies: TrophyId[];
 }
 
@@ -95,6 +105,7 @@ function defaultState(): GameState {
     bestStreak: 0,
     letters: LETTERS.map((letter) => ({ letter, attempts: 0, correct: 0 })),
     practiceStats: PRACTICE_GAMES.map((gameId) => ({ gameId, attempts: 0, correct: 0 })),
+    wordStats: [],
     unlockedTrophies: [],
   };
 }
@@ -121,6 +132,18 @@ function sanitizeState(parsed: unknown): GameState | null {
   const byGame = new Map(
     parsed.practiceStats.map((row: PracticeStat) => [row.gameId, row]),
   );
+  const wordStats = Array.isArray(parsed.wordStats)
+    ? parsed.wordStats.flatMap((row: WordStat) => {
+        if (typeof row?.word !== "string" || !/^[a-z]+$/.test(row.word) || (row.vowel !== "o" && row.vowel !== "u")) return [];
+        return [{
+          word: row.word,
+          vowel: row.vowel,
+          attempts: typeof row.attempts === "number" ? Math.max(0, row.attempts) : 0,
+          correct: typeof row.correct === "number" ? Math.max(0, row.correct) : 0,
+          misses: typeof row.misses === "number" ? Math.max(0, row.misses) : 0,
+        }];
+      })
+    : [];
   return {
     ...fresh,
     ...parsed,
@@ -140,6 +163,7 @@ function sanitizeState(parsed: unknown): GameState | null {
         correct: typeof saved?.correct === "number" ? saved.correct : 0,
       };
     }),
+    wordStats,
     unlockedTrophies: parsed.unlockedTrophies.filter(
       (id): id is TrophyId => typeof id === "string" && id in TROPHY_PRICES,
     ),
@@ -194,6 +218,7 @@ async function recordAttemptInner(
   kind: "letter" | "practice",
   id: Letter | PracticeGameId,
   correct: boolean,
+  word?: { word: string; vowel: Vowel },
 ): Promise<{ coinsChanged: number; state: GameState }> {
   const before = loadState();
   const reward = kind === "letter" ? 5 : 3;
@@ -233,6 +258,15 @@ async function recordAttemptInner(
               : row,
           )
         : before.practiceStats,
+    wordStats: word
+      ? (() => {
+          const existing = before.wordStats.find((row) => row.word === word.word);
+          const nextRow: WordStat = existing
+            ? { ...existing, attempts: existing.attempts + 1, correct: existing.correct + (correct ? 1 : 0), misses: existing.misses + (correct ? 0 : 1) }
+            : { word: word.word, vowel: word.vowel, attempts: 1, correct: correct ? 1 : 0, misses: correct ? 0 : 1 };
+          return existing ? before.wordStats.map((row) => row.word === word.word ? nextRow : row) : [...before.wordStats, nextRow];
+        })()
+      : before.wordStats,
   };
   saveState(next);
   return { coinsChanged, state: next };
@@ -253,8 +287,9 @@ export const api = {
   async recordPracticeAttempt(args: {
     gameId: PracticeGameId;
     correct: boolean;
+    word?: { word: string; vowel: Vowel };
   }): Promise<{ coinsChanged: number; state: GameState }> {
-    return recordAttemptInner("practice", args.gameId, args.correct);
+    return recordAttemptInner("practice", args.gameId, args.correct, args.word);
   },
 
   async unlockTrophy(args: { trophyId: TrophyId }): Promise<{

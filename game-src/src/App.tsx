@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { SafeAreaTopScrim } from "./safe-area";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
-import { api, encodeSave, type ApiResponse } from "./api";
+import { api, encodeSave, type ApiResponse, type Vowel } from "./api";
 import { classifyDrawing, isConfidentMatch, LETTERS, type Letter } from "./draw-classifier";
 import bSound from "./assets/letters/b.mp3";
 import dSound from "./assets/letters/d.mp3";
@@ -13,14 +13,16 @@ import cSound from "./assets/letters/c.mp3";
 import kSound from "./assets/letters/k.mp3";
 import { VOWEL_AUDIO } from "./assets/vowels";
 import { MathBlasters } from "./MathBlasters";
+import { SoundBlaster } from "../SoundBlaster";
 
 type TrophyId = "star" | "one-up" | "fire-flower" | "tanooki-suit" | "green-pipe" | "gold-crown" | "master-sword" | "hylian-shield" | "heros-cap" | "star-rod" | "cappy" | "yoshi" | "poke-ball" | "blue-shell" | "triforce" | "x-wing" | "poop-emoji" | "starfox-laser";
 type GameState = ApiResponse<typeof api, "getGameState">;
 type Verdict = "correct" | "wrong" | "retry" | null;
-type View = "menu" | "bed" | "sound-sort" | "pair-picker" | "write-it" | "math-blasters";
-type PracticeGameId = "sound-sort" | "pair-picker" | "write-it" | "math-blasters";
+type View = "menu" | "bed" | "sound-sort" | "pair-picker" | "write-it" | "math-blasters" | "sound-blaster";
+type PracticeGameId = "sound-sort" | "pair-picker" | "write-it" | "math-blasters" | "sound-blaster";
 type Vowel = "o" | "u";
 type PracticeWord = { word: string; vowel: Vowel; vowelIndex: number; audio: string };
+type PracticeRecorder = (gameId: PracticeGameId, correct: boolean, word?: PracticeWord) => Promise<void>;
 
 type Trophy = { id: TrophyId; name: string; price: number; color: string };
 const TROPHIES: Trophy[] = [
@@ -41,7 +43,7 @@ const TROPHIES: Trophy[] = [
   { id: "triforce", name: "Triforce", price: 750, color: "#f0c020" },
   { id: "x-wing", name: "X-Wing", price: 900, color: "#b9c4d1" },
   { id: "poop-emoji", name: "Poop Emoji", price: 1200, color: "#9a6a3b" },
-  { id: "starfox-laser", name: "Star Fox Laser", price: 9999, color: "#8fa3b8" },
+  { id: "starfox-laser", name: "Star Fox Laser", price: 800, color: "#8fa3b8" },
 ];
 
 const SOUNDS: Record<Letter, string> = { b: bSound, d: dSound, p: pSound, q: qSound, n: nSound, u: uSound, c: cSound, k: kSound };
@@ -49,12 +51,14 @@ const SHORT_O_WORDS = [
   "cot", "cop", "cob", "cod", "bog", "dog", "hog", "lock", "dock", "sock", "mock", "pop",
   "not", "rot", "shot", "fond", "hot", "hop", "pot", "top", "mop", "rock", "box", "fox",
   "dot", "log", "rod", "pond", "drop", "shop", "stop", "clock", "block", "flock", "shock", "stock", "trot", "stomp", "chomp",
+  "bob", "fog", "got", "jog", "job", "lot", "nod", "pod", "rob", "sob", "sod", "tot", "chop", "clog", "crop", "frog", "plop", "prop", "spot",
 ] as const;
 const SHORT_U_WORDS = [
   "cut", "cup", "cub", "cud", "bug", "dug", "hug", "luck", "duck", "suck", "muck", "pup",
   "nut", "rut", "shut", "fund", "hut", "hum", "hub", "pug", "puck", "tub", "tug", "tuck",
   "mug", "stuck", "truck", "cluck", "buck", "bus", "bud", "run", "rug", "rub", "sun",
   "fun", "gun", "drum", "plum", "plug", "club", "scrub", "slug", "blush", "brush", "crush", "trust", "trunk", "up",
+  "bun", "dud", "gum", "jug", "lug", "mud", "pun", "sum", "bump", "dump", "jump", "lump", "pump", "stump", "bunch", "chunk", "lunch", "munch", "punch", "snug",
 ] as const;
 const PRACTICE_WORDS: PracticeWord[] = [
   ...SHORT_O_WORDS.map((word) => ({ word, vowel: "o" as const, vowelIndex: word.indexOf("o"), audio: VOWEL_AUDIO[word] })),
@@ -216,7 +220,15 @@ function PrizeShop({ state, open, onClose, onBuy, buying, message }: { state: Ga
   </div>;
 }
 
-function GameMenu({ state, onPlay, onOpenShop }: { state: GameState | undefined; onPlay: (view: View) => void; onOpenShop: () => void }) {
+function MissedWordsReview({ state, onFocus }: { state: GameState | undefined; onFocus: () => void }) {
+  const missed = [...(state?.wordStats ?? [])].filter((row) => row.misses > 0).sort((a, b) => b.misses - a.misses || a.word.localeCompare(b.word));
+  return <section className="missed-review" aria-labelledby="missed-words-title">
+    <div className="missed-review-topline"><div><h2 id="missed-words-title">Missed words</h2><p>{missed.length ? "Words that need another pass." : "Missed words will show up here as Miles plays."}</p></div>{missed.length > 0 && <button type="button" onClick={onFocus}>Focus these</button>}</div>
+    {missed.length > 0 && <div className="missed-word-list">{missed.slice(0, 12).map((row) => <span key={row.word} className="missed-word-chip"><b>{row.word}</b><small>{row.vowel === "o" ? "ŏ" : "ŭ"} · {row.misses} miss{row.misses === 1 ? "" : "es"}</small></span>)}</div>}
+  </section>;
+}
+
+function GameMenu({ state, onPlay, onOpenShop }: { state: GameState | undefined; onPlay: (view: View, focusMissed?: boolean) => void; onOpenShop: () => void }) {
   const games: Array<{ view: View; label: string; title: string; note: string; art: string; className: string }> = [
     { view: "sound-sort", label: "Play O or U", title: "o or u?", note: `${SOUND_SORT_WORDS.length} short-vowel words in the mix.`, art: "ŏ  ŭ", className: "vowel-tile" },
     { view: "pair-picker", label: "Play Pair Picker", title: "Pair picker", note: "Listen closely, then sort the word.", art: "cot · cut", className: "pair-tile" },
@@ -224,7 +236,7 @@ function GameMenu({ state, onPlay, onOpenShop }: { state: GameState | undefined;
   ];
   return <>
     <header className="menu-tools">
-      <span className="game-count">5 games</span>
+      <span className="game-count">6 games</span>
       <button className="coin-purse" type="button" onClick={onOpenShop} aria-label={`${state?.coins ?? 10} coins, open prize shop`}>
         <CoinIcon /><strong>{state?.coins ?? 10}</strong><small>SHOP</small>
       </button>
@@ -265,6 +277,18 @@ function GameMenu({ state, onPlay, onOpenShop }: { state: GameState | undefined;
         </span>
         <span className="play-pill">Play <span aria-hidden="true">→</span></span>
       </button>
+
+      <button className="game-tile sound-blaster-tile" type="button" onClick={() => onPlay("sound-blaster")} aria-label="Play Sound Blaster">
+        <span className="math-tile-art sound-blaster-art" aria-hidden="true">ŏ  ·  ŭ</span>
+        <span className="game-tile-copy">
+          <span className="game-name">Sound Blaster</span>
+          <span className="game-pronunciation">Blast the vowel!</span>
+          <span className="game-rule">Hear the word twice, then blast short o or short u.</span>
+        </span>
+        <span className="play-pill">Play <span aria-hidden="true">→</span></span>
+      </button>
+
+      <MissedWordsReview state={state} onFocus={() => onPlay("sound-blaster", true)} />
 
       <section className="coming-row" aria-labelledby="coming-title">
         <div><h2 id="coming-title">More games soon</h2><p>Every game uses the same coins and prizes.</p></div>
@@ -350,7 +374,7 @@ function RoundResult({ verdict, onNext, wrongMessage = "Listen once more next ro
   </div>;
 }
 
-function SoundSortGame({ state, onBack, onOpenShop, onRecord }: { state: GameState; onBack: () => void; onOpenShop: () => void; onRecord: (gameId: PracticeGameId, correct: boolean) => Promise<void> }) {
+function SoundSortGame({ state, onBack, onOpenShop, onRecord }: { state: GameState; onBack: () => void; onOpenShop: () => void; onRecord: PracticeRecorder }) {
   const play = useAudioClip();
   const [target, setTarget] = useState<PracticeWord>(() => SOUND_SORT_WORDS[Math.floor(Math.random() * SOUND_SORT_WORDS.length)] ?? DEFAULT_WORD);
   const [verdict, setVerdict] = useState<Verdict>(null);
@@ -360,7 +384,7 @@ function SoundSortGame({ state, onBack, onOpenShop, onRecord }: { state: GameSta
     if (busy || verdict) return;
     setBusy(true);
     const right = choice === target.vowel;
-    try { await onRecord("sound-sort", right); setVerdict(right ? "correct" : "wrong"); } finally { setBusy(false); }
+    try { await onRecord("sound-sort", right, target); setVerdict(right ? "correct" : "wrong"); } finally { setBusy(false); }
   };
   const next = () => {
     setTarget((old) => shuffled(SOUND_SORT_WORDS.filter((item) => item.word !== old.word))[0] ?? DEFAULT_WORD);
@@ -385,7 +409,7 @@ function SoundSortGame({ state, onBack, onOpenShop, onRecord }: { state: GameSta
   </>;
 }
 
-function PairPickerGame({ state, onBack, onOpenShop, onRecord }: { state: GameState; onBack: () => void; onOpenShop: () => void; onRecord: (gameId: PracticeGameId, correct: boolean) => Promise<void> }) {
+function PairPickerGame({ state, onBack, onOpenShop, onRecord }: { state: GameState; onBack: () => void; onOpenShop: () => void; onRecord: PracticeRecorder }) {
   const play = useAudioClip();
   const [mode, setMode] = useState<"pick" | "sort">("pick");
   const [pairIndex, setPairIndex] = useState(() => Math.floor(Math.random() * PAIRS.length));
@@ -395,12 +419,13 @@ function PairPickerGame({ state, onBack, onOpenShop, onRecord }: { state: GameSt
   const [verdict, setVerdict] = useState<Verdict>(null);
   const [busy, setBusy] = useState(false);
   const currentWord = mode === "pick" ? target : sortWord.word;
+  const currentPracticeWord = PRACTICE_WORDS.find((item) => item.word === currentWord) ?? DEFAULT_WORD;
   const hear = () => { const src = WORD_AUDIO.get(currentWord); if (src) void play(src).catch(() => undefined); };
   const answer = async (choice: string) => {
     if (busy || verdict) return;
     const right = mode === "pick" ? choice === target : choice === sortWord.vowel;
     setBusy(true);
-    try { await onRecord("pair-picker", right); setVerdict(right ? "correct" : "wrong"); } finally { setBusy(false); }
+    try { await onRecord("pair-picker", right, currentPracticeWord); setVerdict(right ? "correct" : "wrong"); } finally { setBusy(false); }
   };
   const next = () => {
     if (mode === "pick") {
@@ -431,7 +456,7 @@ function PairPickerGame({ state, onBack, onOpenShop, onRecord }: { state: GameSt
   </>;
 }
 
-function WriteItGame({ state, onBack, onOpenShop, onRecord }: { state: GameState; onBack: () => void; onOpenShop: () => void; onRecord: (gameId: PracticeGameId, correct: boolean) => Promise<void> }) {
+function WriteItGame({ state, onBack, onOpenShop, onRecord }: { state: GameState; onBack: () => void; onOpenShop: () => void; onRecord: PracticeRecorder }) {
   const play = useAudioClip();
   const [target, setTarget] = useState<PracticeWord>(() => WRITE_WORDS[Math.floor(Math.random() * WRITE_WORDS.length)] ?? DEFAULT_WORD);
   const [bank, setBank] = useState<string[]>(() => shuffled((WRITE_WORDS[0]?.word ?? "cot").split("")));
@@ -455,7 +480,7 @@ function WriteItGame({ state, onBack, onOpenShop, onRecord }: { state: GameState
           : "The breve goes over the vowel.");
     }
     setBusy(true);
-    try { await onRecord("write-it", right); setVerdict(right ? "correct" : "wrong"); } finally { setBusy(false); }
+    try { await onRecord("write-it", right, target); setVerdict(right ? "correct" : "wrong"); } finally { setBusy(false); }
   };
   const next = () => setTarget((old) => shuffled(WRITE_WORDS.filter((item) => item.word !== old.word))[0] ?? DEFAULT_WORD);
   return <>
@@ -542,6 +567,7 @@ export function App() {
   const voiceSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const voiceBuffersRef = useRef<Partial<Record<Letter, AudioBuffer>>>({});
   const [view, setView] = useState<View>("menu");
+  const [focusMissedWords, setFocusMissedWords] = useState(false);
   const [target, setTarget] = useState<Letter>(() => pickLetter());
   const [hasInk, setHasInk] = useState(false);
   const [verdict, setVerdict] = useState<Verdict>(null);
@@ -578,7 +604,7 @@ export function App() {
   });
 
   const practice = useMutation({
-    mutationFn: (entry: { gameId: PracticeGameId; correct: boolean }) => api.recordPracticeAttempt(entry),
+    mutationFn: (entry: { gameId: PracticeGameId; correct: boolean; word?: { word: string; vowel: Vowel } }) => api.recordPracticeAttempt(entry),
     onSuccess: (result, entry) => {
       queryClient.setQueryData(["game-state"], result.state);
       if (entry.correct) { setConfettiKey((value) => value + 1); playJackpot(audioContextRef.current); }
@@ -754,10 +780,24 @@ export function App() {
     record.mutate(match.letter === target);
   };
 
-  const savePractice = useCallback(async (gameId: PracticeGameId, correct: boolean) => {
+  const savePractice = useCallback(async (gameId: PracticeGameId, correct: boolean, word?: PracticeWord) => {
     activateAudio();
-    await practice.mutateAsync({ gameId, correct });
+    await practice.mutateAsync({ gameId, correct, word: word ? { word: word.word, vowel: word.vowel } : undefined });
   }, [activateAudio, practice]);
+
+  const startGame = useCallback((nextView: View, focusMissed = false) => {
+    setFocusMissedWords(focusMissed);
+    setView(nextView);
+  }, []);
+
+  const soundBlasterWords = useMemo(() => {
+    if (!focusMissedWords || !state) return SOUND_SORT_WORDS;
+    const focused = state.wordStats
+      .filter((row) => row.misses > 0)
+      .map((row) => PRACTICE_WORDS.find((item) => item.word === row.word))
+      .filter((item): item is PracticeWord => !!item);
+    return focused.length ? focused : SOUND_SORT_WORDS;
+  }, [focusMissedWords, state]);
 
   const confetti = useMemo(() => Array.from({ length: 34 }, (_, index) => ({
     id: `${confettiKey}-${index}`,
@@ -779,14 +819,15 @@ export function App() {
 
     {view === "menu" && <GameMenu
       state={state}
-      onPlay={setView}
+      onPlay={startGame}
       onOpenShop={() => { setShopMessage(null); setShopOpen(true); }}
     />}
 
-    {view === "sound-sort" && state && <SoundSortGame state={state} onBack={() => setView("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} onRecord={savePractice} />}
-    {view === "pair-picker" && state && <PairPickerGame state={state} onBack={() => setView("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} onRecord={savePractice} />}
-    {view === "write-it" && state && <WriteItGame state={state} onBack={() => setView("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} onRecord={savePractice} />}
-    {view === "math-blasters" && state && <MathBlasters coins={state.coins} onBack={() => setView("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} onRecord={(correct) => savePractice("math-blasters", correct)} />}
+    {view === "sound-sort" && state && <SoundSortGame state={state} onBack={() => startGame("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} onRecord={savePractice} />}
+    {view === "pair-picker" && state && <PairPickerGame state={state} onBack={() => startGame("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} onRecord={savePractice} />}
+    {view === "write-it" && state && <WriteItGame state={state} onBack={() => startGame("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} onRecord={savePractice} />}
+    {view === "math-blasters" && state && <MathBlasters coins={state.coins} onBack={() => startGame("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} onRecord={(correct) => savePractice("math-blasters", correct)} />}
+    {view === "sound-blaster" && state && <SoundBlaster coins={state.coins} words={soundBlasterWords} onBack={() => startGame("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} onRecord={(correct, word) => savePractice("sound-blaster", correct, { ...word, vowelIndex: word.word.indexOf(word.vowel) })} />}
     {view !== "menu" && view !== "bed" && !state && <div className="stats-loading page-loading">{game.isError ? "Progress couldn’t load yet." : "Loading your coins…"}</div>}
 
     {view === "bed" && <>

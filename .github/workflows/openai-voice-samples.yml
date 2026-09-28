@@ -6,6 +6,8 @@ on:
     paths:
       - '.github/workflows/openai-voice-samples.yml'
       - 'scripts/generate_openai_audio.py'
+      - 'game-src/src/App.tsx'
+      - 'game-src/src/assets/vowels/index.ts'
 
 permissions:
   contents: read

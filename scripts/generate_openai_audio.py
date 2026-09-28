@@ -11,6 +11,7 @@ import math
 import os
 import pathlib
 import random
+import re
 import subprocess
 import sys
 import tempfile
@@ -21,6 +22,8 @@ import urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 ASSET_ROOT = ROOT / "game-src/src/assets"
+APP_SOURCE = ROOT / "game-src/src/App.tsx"
+VOWEL_INDEX = ASSET_ROOT / "vowels/index.ts"
 REVIEW_ROOT = ROOT / "audio-review"
 PREVIEW_ASSETS = REVIEW_ROOT / "assets/game-src/src/assets"
 MODEL = "gpt-4o-mini-tts"
@@ -47,6 +50,36 @@ def expected_speech(path: pathlib.Path) -> str:
     if stem in ("short-o", "short-u"):
         return "short O" if stem == "short-o" else "short U"
     return stem.removesuffix("_new").replace("-", " ")
+
+
+def desired_word_specs() -> list[tuple[str, str]]:
+    source = APP_SOURCE.read_text(encoding="utf-8")
+    specs: list[tuple[str, str]] = []
+    for constant, vowel in (("SHORT_O_WORDS", "o"), ("SHORT_U_WORDS", "u")):
+        match = re.search(rf"const {constant}\s*=\s*\[(.*?)\]\s*as const;", source, re.S)
+        if not match:
+            raise ValueError(f"Could not find {constant} in {APP_SOURCE}")
+        specs.extend((word, vowel) for word in re.findall(r'"([a-z]+)"', match.group(1)))
+    return specs
+
+
+def validate_word_wiring(specs: list[tuple[str, str]]) -> list[str]:
+    errors: list[str] = []
+    seen: set[str] = set()
+    index_source = VOWEL_INDEX.read_text(encoding="utf-8")
+    for word, vowel in specs:
+        if word in seen:
+            errors.append(f"duplicate word in App.tsx: {word}")
+        seen.add(word)
+        if word == "mom":
+            errors.append("mom is intentionally removed from the word bank")
+        if word.count(vowel) != 1:
+            errors.append(f"{word} does not contain exactly one target vowel {vowel}")
+        if not re.search(rf'import\s+{re.escape(word)}\s+from\s+"\./{re.escape(word)}\.mp3";', index_source):
+            errors.append(f"missing audio import for {word}")
+        if not re.search(rf"\b{re.escape(word)},", index_source):
+            errors.append(f"missing VOWEL_AUDIO entry for {word}")
+    return errors
 
 
 def call_tts(key: str, speech: str, destination: pathlib.Path) -> None:
@@ -183,8 +216,22 @@ def main() -> int:
     if not key:
         print("Missing repository Actions secret: openaivoice", file=sys.stderr)
         return 2
+    try:
+        specs = desired_word_specs()
+        wiring_errors = validate_word_wiring(specs)
+    except Exception as exc:
+        print(f"Static source check failed: {exc}", file=sys.stderr)
+        return 2
+    if wiring_errors:
+        print("Static source check failed:", file=sys.stderr)
+        for error in wiring_errors:
+            print(f"- {error}", file=sys.stderr)
+        return 2
     assets = sorted(ASSET_ROOT.rglob("*.mp3"))
-    if not assets:
+    desired_assets = [ASSET_ROOT / "vowels" / f"{word}.mp3" for word, _ in specs]
+    missing_assets = [path for path in desired_assets if not path.exists()]
+    targets = sorted(set(assets + missing_assets))
+    if not targets:
         print("No source MP3 files found", file=sys.stderr)
         return 2
     for root in (PREVIEW_ASSETS,):
@@ -193,9 +240,29 @@ def main() -> int:
     errors: list[str] = []
     with tempfile.TemporaryDirectory(prefix="openai-audio-") as temporary:
         temp_root = pathlib.Path(temporary)
-        for index, source in enumerate(assets, start=1):
+        for index, source in enumerate(targets, start=1):
             relative = source.relative_to(ASSET_ROOT)
             speech = expected_speech(source)
+            preview = PREVIEW_ASSETS / relative
+            preview.parent.mkdir(parents=True, exist_ok=True)
+
+            if source.exists():
+                row: dict[str, object] = {"file": source.as_posix(), "spoken_text": speech}
+                try:
+                    metrics = inspect_audio(source)
+                    reasons = warnings(metrics)
+                    row.update(metrics)
+                    row.update({"status": "PASS" if not reasons else "FAILED", "issues": ", ".join(reasons)})
+                    preview.write_bytes(source.read_bytes())
+                    if reasons:
+                        errors.append(relative.as_posix() + ": " + ", ".join(reasons))
+                except Exception as exc:
+                    row.update({"status": "FAILED", "issues": type(exc).__name__})
+                    errors.append(relative.as_posix() + ": " + type(exc).__name__)
+                rows.append(row)
+                print(f"[{index}/{len(targets)}] {row['status']} {relative.as_posix()}")
+                continue
+
             raw_mp3 = temp_root / (relative.as_posix().replace("/", "_") + ".raw.mp3")
             final_mp3 = temp_root / (relative.as_posix().replace("/", "_") + ".mp3")
             last_error = ""
@@ -241,8 +308,6 @@ def main() -> int:
                 errors.append(relative.as_posix() + ": " + str(row["issues"]))
             else:
                 source.write_bytes(final_mp3.read_bytes())
-                preview = PREVIEW_ASSETS / relative
-                preview.parent.mkdir(parents=True, exist_ok=True)
                 preview.write_bytes(final_mp3.read_bytes())
                 row.update(accepted)
                 row.update({"status": "PASS", "issues": ""})
@@ -251,7 +316,7 @@ def main() -> int:
     write_report(rows, errors)
     failed = len(errors)
     flagged = sum(1 for row in rows if row.get("issues") and row.get("status") == "PASS")
-    print(f"Checked {len(assets)} source MP3s; failed={failed}; review_flags={flagged}")
+    print(f"Checked {len(targets)} source MP3s; generated_missing={len(missing_assets)}; failed={failed}; review_flags={flagged}")
     if failed:
         return 1
     return 0

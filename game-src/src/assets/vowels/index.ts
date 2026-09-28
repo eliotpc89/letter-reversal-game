@@ -86,6 +86,45 @@ import tub from "./tub.mp3";
 import tuck from "./tuck.mp3";
 import tug from "./tug.mp3";
 import up from "./up.mp3";
+import bob from "./bob.mp3";
+import fog from "./fog.mp3";
+import got from "./got.mp3";
+import jog from "./jog.mp3";
+import job from "./job.mp3";
+import lot from "./lot.mp3";
+import nod from "./nod.mp3";
+import pod from "./pod.mp3";
+import rob from "./rob.mp3";
+import sob from "./sob.mp3";
+import sod from "./sod.mp3";
+import tot from "./tot.mp3";
+import chop from "./chop.mp3";
+import clog from "./clog.mp3";
+import crop from "./crop.mp3";
+import frog from "./frog.mp3";
+import plop from "./plop.mp3";
+import prop from "./prop.mp3";
+import spot from "./spot.mp3";
+import bun from "./bun.mp3";
+import dud from "./dud.mp3";
+import gum from "./gum.mp3";
+import jug from "./jug.mp3";
+import lug from "./lug.mp3";
+import mud from "./mud.mp3";
+import pun from "./pun.mp3";
+import sum from "./sum.mp3";
+import bump from "./bump.mp3";
+import dump from "./dump.mp3";
+import jump from "./jump.mp3";
+import lump from "./lump.mp3";
+import pump from "./pump.mp3";
+import stump from "./stump.mp3";
+import bunch from "./bunch.mp3";
+import chunk from "./chunk.mp3";
+import lunch from "./lunch.mp3";
+import munch from "./munch.mp3";
+import punch from "./punch.mp3";
+import snug from "./snug.mp3";
 
 export const VOWEL_AUDIO = {
   block, blush, bog, box, brush, buck, bud, bug, bus, chomp, cluck, clock, club,
@@ -95,4 +134,6 @@ export const VOWEL_AUDIO = {
   pug, pup, rock, rod, rot, rub, rug, run, rut, scrub, shock, shop, shot, shut,
   slug, sock, stock, stomp, stop, stuck, suck, sun, top, trot, truck, trunk, trust,
   tub, tuck, tug, up,
+  bob, fog, got, jog, job, lot, nod, pod, rob, sob, sod, tot, chop, clog, crop, frog, plop, prop, spot,
+  bun, dud, gum, jug, lug, mud, pun, sum, bump, dump, jump, lump, pump, stump, bunch, chunk, lunch, munch, punch, snug,
 } as const;
