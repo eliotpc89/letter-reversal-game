@@ -427,18 +427,29 @@ button { font: inherit; }
 /* Math Blasters */
 .math-game-tile { margin-top: 14px; min-height: 148px; background: #dfeeff; }
 .math-tile-art { grid-column: 1 / -1; min-height: 62px; padding: 8px; border: 3px solid #14213d; border-radius: 12px 20px 10px 17px; background: #14213d; color: #8ee9ff; display: grid; place-items: center; font-family: "Avenir Next Rounded", "Trebuchet MS", sans-serif; font-size: clamp(24px, 7vw, 38px); font-weight: 950; letter-spacing: .04em; text-shadow: 0 0 11px #39dfff; }
-.math-header { position: sticky; z-index: 20; top: 0; min-height: 84px; padding: 11px 14px 13px; border-bottom: 3px solid var(--text); background: color-mix(in srgb, var(--bg) 96%, transparent); display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 11px; }
-.math-header > div { min-width: 0; display: flex; flex-direction: column; }
-.math-header > div span { color: #2a75bb; font-size: 11px; font-weight: 950; letter-spacing: .04em; text-transform: uppercase; }
-.math-header > div strong { overflow: hidden; text-overflow: ellipsis; font-family: "Avenir Next Rounded", "Trebuchet MS", sans-serif; font-size: 22px; line-height: 1.05; white-space: nowrap; }
-.math-main { width: min(100%, 760px); height: calc(100dvh - 84px); min-height: 0; margin: 0 auto; padding: 14px 14px max(12px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; overflow: hidden; }
+.math-header { position: sticky; z-index: 20; top: 0; min-height: 70px; padding: 7px 12px 9px; border-bottom: 3px solid var(--text); background: color-mix(in srgb, var(--bg) 96%, transparent); display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; align-items: center; gap: 7px; }
+.math-header > div { min-width: 0; }
+.math-title { display: flex; min-width: 0; flex-direction: column; }
+.math-title span { overflow: hidden; color: #2a75bb; font-size: 9px; font-weight: 950; letter-spacing: .04em; text-transform: uppercase; text-overflow: ellipsis; white-space: nowrap; }
+.math-title strong { overflow: hidden; text-overflow: ellipsis; font-family: "Avenir Next Rounded", "Trebuchet MS", sans-serif; font-size: 18px; line-height: 1.05; white-space: nowrap; }
+.math-hud-block { min-height: 46px; padding: 4px 7px; border: 2px solid var(--text); border-radius: 9px 13px 8px 11px; background: var(--surface); display: flex; flex-direction: column; justify-content: center; }
+.math-hud-block > span { color: var(--dim); font-size: 8px; font-weight: 900; letter-spacing: .04em; line-height: 1; text-transform: uppercase; }
+.math-hud-block > strong { font-family: "Avenir Next Rounded", "Trebuchet MS", sans-serif; font-size: 17px; line-height: 1; }
+.math-score-block { position: relative; min-width: 52px; }
+.math-score-block small { position: absolute; right: 5px; bottom: 4px; color: var(--blue); font-size: 9px; font-weight: 950; }
+.shield-meter { min-width: 70px; }
+.shield-meter strong { display: flex; gap: 2px; color: #aab7c9; font-size: 12px; line-height: 1; }
+.shield-meter strong i { font-style: normal; }
+.shield-meter strong i.active { color: #39c7e8; text-shadow: 0 0 6px #39c7e8; }
+.math-shop { min-width: 51px; min-height: 51px; padding: 3px; border-width: 2px; box-shadow: 0 3px 0 var(--text); }
+.math-shop .coin { width: 17px; height: 17px; font-size: 8px; }
+.math-shop strong { margin-top: 1px; font-size: 15px; }
+.math-shop small { margin-top: 1px; font-size: 7px; }
+.math-main { width: min(100%, 760px); height: calc(100dvh - 70px); min-height: 0; margin: 0 auto; padding: 8px 12px max(8px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; overflow: hidden; }
 .math-scorebar { display: grid; grid-template-columns: 1fr 1fr 1.45fr; gap: 8px; margin-bottom: 13px; }
 .math-scorebar > div { min-height: 58px; padding: 7px 10px; border: 3px solid var(--text); border-radius: 11px 16px 10px 14px; background: var(--surface); display: flex; flex-direction: column; justify-content: center; }
 .math-scorebar span { color: var(--dim); font-size: 11px; font-weight: 850; text-transform: uppercase; }
 .math-scorebar strong { font-family: "Avenir Next Rounded", "Trebuchet MS", sans-serif; font-size: 22px; line-height: 1; }
-.shield-meter strong { display: flex; gap: 4px; color: #aab7c9; font-size: 17px; }
-.shield-meter strong i { font-style: normal; }
-.shield-meter strong i.active { color: #39c7e8; text-shadow: 0 0 7px #39c7e8; }
 .math-stage { position: relative; isolation: isolate; flex: 1 1 auto; min-height: 0; overflow: hidden; border: 4px solid #14213d; border-radius: 19px 29px 15px 24px; background: radial-gradient(circle at 70% 18%, rgba(98, 191, 255, .22), transparent 20%), linear-gradient(180deg, #152a54 0%, #0a1634 70%, #0b1027 100%); box-shadow: 0 8px 0 #14213d; touch-action: none; }
 .math-stage::before { content: ""; position: absolute; inset: 0; z-index: -1; background-image: radial-gradient(circle, rgba(255,255,255,.85) 0 1px, transparent 1.5px), radial-gradient(circle, rgba(142,233,255,.65) 0 1px, transparent 1.5px); background-size: 83px 91px, 137px 119px; background-position: 12px 5px, 48px 33px; opacity: .55; animation: math-stars-drift 9s linear infinite; }
 .math-prompt { position: relative; z-index: 4; min-height: 124px; padding: 20px 14px 3px; text-align: center; color: white; pointer-events: none; }
@@ -451,7 +462,8 @@ button { font: inherit; }
 .answer-target.hit { animation: answer-hit .58s ease both; pointer-events: none; }
 .answer-target.wrong { animation: answer-wrong .65s ease both; filter: saturate(.55) hue-rotate(285deg); }
 .answer-target.missed { opacity: .2; }
-.math-laser { position: absolute; z-index: 6; width: 46px; height: 8px; transform-origin: center; border-radius: 999px; background: linear-gradient(90deg, transparent 0%, #35eaff 23%, #fff 52%, #35eaff 82%, transparent 100%); box-shadow: 0 0 4px 2px #fff, 0 0 10px 3px rgba(53,234,255,.86); animation: laser-shot .28s cubic-bezier(.2,.8,.25,1) both; pointer-events: none; }
+.math-laser { position: absolute; z-index: 7; left: 50%; top: 86%; width: 52px; height: 9px; transform-origin: center; transform: translate(-50%, -50%) rotate(var(--shot-angle)) translateX(0) scaleX(.35); border-radius: 999px; background: linear-gradient(90deg, transparent 0%, #35eaff 20%, #fff 52%, #35eaff 84%, transparent 100%); box-shadow: 0 0 5px 2px #fff, 0 0 13px 4px rgba(53,234,255,.95); animation: laser-shot .48s cubic-bezier(.18,.78,.25,1) both; pointer-events: none; }
+.math-laser::after { content: ""; position: absolute; right: -2px; top: 50%; width: 12px; height: 12px; transform: translateY(-50%); border-radius: 50%; background: #fff; box-shadow: 0 0 8px 4px #35eaff; }
 .ship-deck { position: absolute; z-index: 3; left: 50%; bottom: 2%; width: 128px; height: 110px; transform: translateX(-50%); }
 .math-ship { position: relative; width: 100%; height: 100%; filter: drop-shadow(0 0 10px rgba(57,223,255,.65)); animation: ship-hover 1.7s ease-in-out infinite; }
 .math-ship svg { position: absolute; inset: 8px 0 0; width: 100%; height: 86px; }
@@ -466,7 +478,12 @@ button { font: inherit; }
 @keyframes math-stars-drift { from { background-position: 12px 5px, 48px 33px; } to { background-position: 12px 150px, 48px 183px; } }
 @keyframes ship-hover { 0%,100% { translate: 0 0; } 50% { translate: 0 -5px; } }
 @keyframes flame-flicker { from { scale: 1 .85; opacity: .75; } to { scale: .82 1.08; opacity: 1; } }
-@keyframes laser-shot { 0% { opacity: 0; scale: 0 1; } 18% { opacity: 1; } 100% { opacity: 0; scale: 1 1; } }
+@keyframes laser-shot {
+  0% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--shot-angle)) translateX(0) scaleX(.35); }
+  12% { opacity: 1; }
+  78% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--shot-angle)) translateX(var(--shot-distance)) scaleX(1); }
+}
 @keyframes answer-hit { 0% { opacity: 1; scale: 1; } 100% { opacity: 0; scale: 1.9; rotate: 24deg; } }
 @keyframes answer-wrong { 0%,100% { translate: -50% 0; } 25% { translate: calc(-50% - 8px) 0; } 55% { translate: calc(-50% + 8px) 0; } 78% { translate: calc(-50% - 4px) 0; } }
 

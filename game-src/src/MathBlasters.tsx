@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from "react";
 
 type MathProblem = {
   left: number;
@@ -16,7 +16,7 @@ type AnswerTarget = {
   status: "falling" | "hit" | "wrong" | "missed";
 };
 
-type Laser = { id: number; x: number; y: number };
+type Laser = { id: number; angle: number; distance: number };
 
 type MathBlastersProps = {
   coins: number;
@@ -136,6 +136,7 @@ function Spaceship() {
 
 export function MathBlasters({ coins, onBack, onOpenShop, onRecord }: MathBlastersProps) {
   const audioRef = useRef<AudioContext | null>(null);
+  const stageRef = useRef<HTMLElement | null>(null);
   const timerRef = useRef<number | null>(null);
   const lockedRef = useRef(false);
   const shieldsRef = useRef(3);
@@ -225,7 +226,12 @@ export function MathBlasters({ coins, onBack, onOpenShop, onRecord }: MathBlaste
     setBusy(true);
     if (target.value === problem.answer) {
       if (soundOn) playLaser(createAudioContext(audioRef));
-      setLaser({ id: Date.now(), x: target.x, y: target.y });
+      const stage = stageRef.current?.getBoundingClientRect();
+      const width = stage?.width ?? 360;
+      const height = stage?.height ?? 560;
+      const dx = (target.x / 100) * width - width * 0.5;
+      const dy = (target.y / 100) * height - height * 0.86;
+      setLaser({ id: Date.now(), angle: Math.atan2(dy, dx), distance: Math.hypot(dx, dy) });
       setTargets((current) => current.map((item) => item.id === target.id ? { ...item, status: "hit" } : item));
       setFeedback("DIRECT HIT! Great blast!");
       setScore((value) => value + 10 + Math.max(0, 5 - round));
@@ -258,16 +264,13 @@ export function MathBlasters({ coins, onBack, onOpenShop, onRecord }: MathBlaste
   return <>
     <header className="math-header">
       <button className="back-button" type="button" onClick={onBack} aria-label="Back to game menu">←</button>
-      <div><span>Math Blasters</span><strong>Blast the answer!</strong></div>
-      <button className="coin-purse small-purse" type="button" onClick={onOpenShop} aria-label={`${coins} coins, open prize shop`}><span className="coin coin-small">★</span><strong>{coins}</strong></button>
+      <div className="math-title"><span>Math Blasters</span><strong>Blast it!</strong></div>
+      <div className="math-hud-block math-score-block"><span>Score</span><strong>{score}</strong><small>R{round}</small></div>
+      <div className="math-hud-block shield-meter"><span>Shields</span><strong>{shieldPips.map((pip) => <i key={pip} className={pip < shields ? "active" : ""}>◆</i>)}</strong></div>
+      <button className="coin-purse math-shop" type="button" onClick={onOpenShop} aria-label={`${coins} coins, open prize shop`}><span className="coin coin-small">★</span><strong>{coins}</strong><small>SHOP</small></button>
     </header>
     <main className="math-main">
-      <section className="math-scorebar" aria-label="Math Blasters score">
-        <div><span>Score</span><strong>{score}</strong></div>
-        <div><span>Round</span><strong>{round}</strong></div>
-        <div className="shield-meter"><span>Ship shields</span><strong>{shieldPips.map((pip) => <i key={pip} className={pip < shields ? "active" : ""}>◆</i>)}</strong></div>
-      </section>
-      <section className="math-stage" aria-labelledby="math-problem">
+      <section ref={stageRef} className="math-stage" aria-labelledby="math-problem">
         <div className="math-stars" aria-hidden="true" />
         <div className="math-prompt"><span>Solve it!</span><h1 id="math-problem">{problem.left} {problem.operator} {problem.right} = ?</h1><p>{feedback}</p></div>
         {targets.map((target) => <button
@@ -279,7 +282,7 @@ export function MathBlasters({ coins, onBack, onOpenShop, onRecord }: MathBlaste
           disabled={busy || gameOver || target.status !== "falling"}
           aria-label={`Answer ${target.value}`}
         >{target.value}</button>)}
-        {laser && <span key={laser.id} className="math-laser" style={{ left: `${laser.x}%`, top: `${laser.y}%`, transform: `translate(-50%, -50%) rotate(${Math.atan2(laser.y - 86, laser.x - 50)}rad)` }} aria-hidden="true" />}
+        {laser && <span key={laser.id} className="math-laser" style={{ "--shot-angle": `${laser.angle}rad`, "--shot-distance": `${laser.distance}px` } as CSSProperties} aria-hidden="true" />}
         <div className="ship-deck"><Spaceship /></div>
         {gameOver && <div className="math-game-over" role="status"><strong>SHIP DOWN!</strong><span>Score: {score}</span><button type="button" onClick={repair}>Repair and play again</button></div>}
       </section>
