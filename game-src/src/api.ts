@@ -25,10 +25,10 @@ export type TrophyId =
   | "x-wing"
   | "poop-emoji"
   | "starfox-laser";
-export type PracticeGameId = "sound-sort" | "pair-picker" | "write-it";
+export type PracticeGameId = "sound-sort" | "pair-picker" | "write-it" | "math-blasters";
 
 const LETTERS: Letter[] = ["b", "d", "p", "q", "n", "u", "c", "k"];
-const PRACTICE_GAMES: PracticeGameId[] = ["sound-sort", "pair-picker", "write-it"];
+const PRACTICE_GAMES: PracticeGameId[] = ["sound-sort", "pair-picker", "write-it", "math-blasters"];
 const TROPHY_PRICES: Record<TrophyId, number> = {
   star: 15,
   "one-up": 30,

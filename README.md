@@ -1,7 +1,7 @@
 # Letter Reversal Game — phonics arcade
 
-A static phonics arcade for Miles: letter-reversal games, three Fundations
-short-o/short-u games (sound sort, pair picker, write it), a coin bank, and an
+A static learning arcade for Miles: letter-reversal games, three Fundations
+short-o/short-u games (sound sort, pair picker, write it), Math Blasters, a coin bank, and an
 18-trophy prize shop. No backend, no login — coins, stats, and trophies live
 in the browser's `localStorage`, per device.
 

@@ -12,12 +12,13 @@ import uSound from "./assets/letters/u.mp3";
 import cSound from "./assets/letters/c.mp3";
 import kSound from "./assets/letters/k.mp3";
 import { VOWEL_AUDIO } from "./assets/vowels";
+import { MathBlasters } from "./MathBlasters";
 
 type TrophyId = "star" | "one-up" | "fire-flower" | "tanooki-suit" | "green-pipe" | "gold-crown" | "master-sword" | "hylian-shield" | "heros-cap" | "star-rod" | "cappy" | "yoshi" | "poke-ball" | "blue-shell" | "triforce" | "x-wing" | "poop-emoji" | "starfox-laser";
 type GameState = ApiResponse<typeof api, "getGameState">;
 type Verdict = "correct" | "wrong" | "retry" | null;
-type View = "menu" | "bed" | "sound-sort" | "pair-picker" | "write-it";
-type PracticeGameId = "sound-sort" | "pair-picker" | "write-it";
+type View = "menu" | "bed" | "sound-sort" | "pair-picker" | "write-it" | "math-blasters";
+type PracticeGameId = "sound-sort" | "pair-picker" | "write-it" | "math-blasters";
 type Vowel = "o" | "u";
 type PracticeWord = { word: string; vowel: Vowel; vowelIndex: number; audio: string };
 
@@ -223,7 +224,7 @@ function GameMenu({ state, onPlay, onOpenShop }: { state: GameState | undefined;
   ];
   return <>
     <header className="menu-tools">
-      <span className="game-count">4 games</span>
+      <span className="game-count">5 games</span>
       <button className="coin-purse" type="button" onClick={onOpenShop} aria-label={`${state?.coins ?? 10} coins, open prize shop`}>
         <CoinIcon /><strong>{state?.coins ?? 10}</strong><small>SHOP</small>
       </button>
@@ -254,6 +255,16 @@ function GameMenu({ state, onPlay, onOpenShop }: { state: GameState | undefined;
           </button>;
         })}
       </section>
+
+      <button className="game-tile math-game-tile" type="button" onClick={() => onPlay("math-blasters")} aria-label="Play Math Blasters">
+        <span className="math-tile-art" aria-hidden="true">✦ 3 + 2 ✦</span>
+        <span className="game-tile-copy">
+          <span className="game-name">Math Blasters</span>
+          <span className="game-pronunciation">Blast the answer!</span>
+          <span className="game-rule">Click the falling number before it reaches your ship.</span>
+        </span>
+        <span className="play-pill">Play <span aria-hidden="true">→</span></span>
+      </button>
 
       <section className="coming-row" aria-labelledby="coming-title">
         <div><h2 id="coming-title">More games soon</h2><p>Every game uses the same coins and prizes.</p></div>
@@ -775,6 +786,7 @@ export function App() {
     {view === "sound-sort" && state && <SoundSortGame state={state} onBack={() => setView("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} onRecord={savePractice} />}
     {view === "pair-picker" && state && <PairPickerGame state={state} onBack={() => setView("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} onRecord={savePractice} />}
     {view === "write-it" && state && <WriteItGame state={state} onBack={() => setView("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} onRecord={savePractice} />}
+    {view === "math-blasters" && state && <MathBlasters coins={state.coins} onBack={() => setView("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} onRecord={(correct) => savePractice("math-blasters", correct)} />}
     {view !== "menu" && view !== "bed" && !state && <div className="stats-loading page-loading">{game.isError ? "Progress couldn’t load yet." : "Loading your coins…"}</div>}
 
     {view === "bed" && <>
