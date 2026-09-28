@@ -200,7 +200,7 @@ export function MathBlasters({ coins, onBack, onOpenShop, onRecord }: MathBlaste
       if (!lockedRef.current && !gameOver) {
         setTargets((current) => {
           const next = current.map((target) => target.status === "falling"
-            ? { ...target, y: target.y + delta * (0.009 + Math.min(round, 12) * 0.0008) }
+            ? { ...target, y: target.y + delta * (0.0075 + Math.min(round, 12) * 0.0006) }
             : target);
           const breached = next.find((target) => target.status === "falling" && target.y >= 83);
           if (breached) void damage("A target got through — protect your ship!");

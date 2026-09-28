@@ -488,10 +488,29 @@ button { font: inherit; }
 @keyframes answer-wrong { 0%,100% { translate: -50% 0; } 25% { translate: calc(-50% - 8px) 0; } 55% { translate: calc(-50% + 8px) 0; } 78% { translate: calc(-50% - 4px) 0; } }
 
 @media (max-width: 420px) {
-  .math-scorebar { grid-template-columns: 1fr 1fr; }
-  .shield-meter { grid-column: 1 / -1; }
-  .math-controls { align-items: stretch; flex-direction: column; }
-  .math-controls button { width: 100%; }
+  .math-header { min-height: 54px; padding: 4px 6px 6px; gap: 4px; }
+  .math-header .back-button { width: 38px; height: 38px; border-width: 2px; box-shadow: 0 3px 0 var(--text); font-size: 22px; }
+  .math-title span { font-size: 7px; }
+  .math-title strong { font-size: 14px; }
+  .math-hud-block { min-height: 38px; padding: 3px 4px; border-width: 2px; }
+  .math-hud-block > span { font-size: 7px; }
+  .math-hud-block > strong { font-size: 14px; }
+  .math-score-block { min-width: 42px; }
+  .math-score-block small { right: 3px; bottom: 3px; font-size: 7px; }
+  .math-header .shield-meter { grid-column: auto; min-width: 55px; }
+  .math-header .shield-meter strong { gap: 1px; font-size: 10px; }
+  .math-shop { min-width: 42px; min-height: 42px; box-shadow: 0 2px 0 var(--text); }
+  .math-shop .coin { width: 14px; height: 14px; font-size: 7px; }
+  .math-shop strong { font-size: 12px; }
+  .math-shop small { font-size: 6px; }
+  .math-main { height: calc(100dvh - 54px); padding: 4px 6px max(4px, env(safe-area-inset-bottom)); }
+  .math-prompt { min-height: 104px; padding: 13px 8px 2px; }
+  .math-prompt > span { font-size: 10px; }
+  .math-prompt h1 { font-size: clamp(32px, 10vw, 45px); }
+  .math-prompt p { font-size: 10px; }
+  .math-controls { align-items: center; gap: 5px; padding-top: 5px; font-size: 10px; }
+  .math-controls p { max-width: 72%; }
+  .math-controls button { min-height: 34px; padding: 0 7px; font-size: 10px; }
 }
 
 html.math-fullscreen, body.math-fullscreen { height: 100%; overflow: hidden; overscroll-behavior: none; }
