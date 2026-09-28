@@ -138,6 +138,8 @@ export function MathBlasters({ coins, onBack, onOpenShop, onRecord }: MathBlaste
   const audioRef = useRef<AudioContext | null>(null);
   const stageRef = useRef<HTMLElement | null>(null);
   const timerRef = useRef<number | null>(null);
+  const pausedRef = useRef(false);
+  const pendingNextRoundRef = useRef(false);
   const lockedRef = useRef(false);
   const shieldsRef = useRef(3);
   const [round, setRound] = useState(1);
@@ -150,6 +152,7 @@ export function MathBlasters({ coins, onBack, onOpenShop, onRecord }: MathBlaste
   const [gameOver, setGameOver] = useState(false);
   const [busy, setBusy] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
+  const [paused, setPaused] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.add("math-fullscreen");
@@ -172,6 +175,26 @@ export function MathBlasters({ coins, onBack, onOpenShop, onRecord }: MathBlaste
     setBusy(false);
   }, [round]);
 
+  const scheduleNextRound = useCallback((delay: number) => {
+    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(() => {
+      timerRef.current = null;
+      if (pausedRef.current) {
+        pendingNextRoundRef.current = true;
+        return;
+      }
+      nextRound();
+    }, delay);
+  }, [nextRound]);
+
+  useEffect(() => {
+    pausedRef.current = paused;
+    if (!paused && pendingNextRoundRef.current) {
+      pendingNextRoundRef.current = false;
+      nextRound();
+    }
+  }, [nextRound, paused]);
+
   const damage = useCallback(async (message: string) => {
     if (lockedRef.current || gameOver) return;
     lockedRef.current = true;
@@ -187,9 +210,9 @@ export function MathBlasters({ coins, onBack, onOpenShop, onRecord }: MathBlaste
       setGameOver(true);
       setBusy(false);
     } else {
-      timerRef.current = window.setTimeout(nextRound, 850);
+      scheduleNextRound(850);
     }
-  }, [gameOver, nextRound, onRecord, soundOn]);
+  }, [gameOver, onRecord, scheduleNextRound, soundOn]);
 
   useEffect(() => {
     let frame = 0;
@@ -197,7 +220,7 @@ export function MathBlasters({ coins, onBack, onOpenShop, onRecord }: MathBlaste
     const tick = (now: number) => {
       const delta = Math.min(40, now - previous);
       previous = now;
-      if (!lockedRef.current && !gameOver) {
+      if (!paused && !lockedRef.current && !gameOver) {
         setTargets((current) => {
           const next = current.map((target) => target.status === "falling"
             ? { ...target, y: target.y + delta * (0.0075 + Math.min(round, 12) * 0.0006) }
@@ -211,7 +234,7 @@ export function MathBlasters({ coins, onBack, onOpenShop, onRecord }: MathBlaste
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [damage, gameOver, round]);
+  }, [damage, gameOver, paused, round]);
 
   useEffect(() => () => {
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
@@ -220,7 +243,7 @@ export function MathBlasters({ coins, onBack, onOpenShop, onRecord }: MathBlaste
   }, []);
 
   const fire = async (target: AnswerTarget) => {
-    if (busy || lockedRef.current || gameOver) return;
+    if (busy || paused || lockedRef.current || gameOver) return;
     createAudioContext(audioRef);
     lockedRef.current = true;
     setBusy(true);
@@ -236,13 +259,18 @@ export function MathBlasters({ coins, onBack, onOpenShop, onRecord }: MathBlaste
       setFeedback("DIRECT HIT! Great blast!");
       setScore((value) => value + 10 + Math.max(0, 5 - round));
       await onRecord(true);
-      timerRef.current = window.setTimeout(nextRound, 650);
+      scheduleNextRound(650);
     } else {
       setTargets((current) => current.map((item) => item.id === target.id ? { ...item, status: "wrong" } : item));
       lockedRef.current = false;
       await damage(`That was ${target.value}. Try the answer to ${problem.left} ${problem.operator} ${problem.right}!`);
     }
   };
+
+  const togglePause = () => setPaused((value) => {
+    pausedRef.current = !value;
+    return !value;
+  });
 
   const repair = () => {
     const nextProblem = makeProblem(1);
@@ -257,6 +285,9 @@ export function MathBlasters({ coins, onBack, onOpenShop, onRecord }: MathBlaste
     setLaser(null);
     setGameOver(false);
     setBusy(false);
+    setPaused(false);
+    pausedRef.current = false;
+    pendingNextRoundRef.current = false;
   };
 
   const shieldPips = useMemo(() => [0, 1, 2], []);
@@ -265,6 +296,7 @@ export function MathBlasters({ coins, onBack, onOpenShop, onRecord }: MathBlaste
     <header className="math-header">
       <button className="back-button" type="button" onClick={onBack} aria-label="Back to game menu">←</button>
       <div className="math-title"><span>Math Blasters</span><strong>Blast it!</strong></div>
+      <button className="math-pause" type="button" onClick={togglePause} disabled={gameOver} aria-label={paused ? "Resume game" : "Pause game"}><span aria-hidden="true">{paused ? "▶" : "Ⅱ"}</span><small>{paused ? "Resume" : "Pause"}</small></button>
       <div className="math-hud-block math-score-block"><span>Score</span><strong>{score}</strong><small>R{round}</small></div>
       <div className="math-hud-block shield-meter"><span>Shields</span><strong>{shieldPips.map((pip) => <i key={pip} className={pip < shields ? "active" : ""}>◆</i>)}</strong></div>
       <button className="coin-purse math-shop" type="button" onClick={onOpenShop} aria-label={`${coins} coins, open prize shop`}><span className="coin coin-small">★</span><strong>{coins}</strong><small>SHOP</small></button>
@@ -283,6 +315,7 @@ export function MathBlasters({ coins, onBack, onOpenShop, onRecord }: MathBlaste
           aria-label={`Answer ${target.value}`}
         >{target.value}</button>)}
         {laser && <span key={laser.id} className="math-laser" style={{ "--shot-angle": `${laser.angle}rad`, "--shot-distance": `${laser.distance}px` } as CSSProperties} aria-hidden="true" />}
+        {paused && !gameOver && <div className="math-paused" role="status"><strong>PAUSED</strong><span>Tap resume when you’re ready.</span></div>}
         <div className="ship-deck"><Spaceship /></div>
         {gameOver && <div className="math-game-over" role="status"><strong>SHIP DOWN!</strong><span>Score: {score}</span><button type="button" onClick={repair}>Repair and play again</button></div>}
       </section>

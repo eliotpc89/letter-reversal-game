@@ -87,6 +87,8 @@ export function SoundBlaster({ coins, words, onBack, onOpenShop, onRecord }: Sou
   const stageRef = useRef<HTMLElement | null>(null);
   const timerRef = useRef<number | null>(null);
   const audioRepeatTimerRef = useRef<number | null>(null);
+  const pausedRef = useRef(false);
+  const pendingNextRoundRef = useRef(false);
   const lockedRef = useRef(false);
   const shieldsRef = useRef(3);
   const [round, setRound] = useState(1);
@@ -99,6 +101,7 @@ export function SoundBlaster({ coins, words, onBack, onOpenShop, onRecord }: Sou
   const [gameOver, setGameOver] = useState(false);
   const [busy, setBusy] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
+  const [paused, setPaused] = useState(false);
   const playWord = useWordAudio();
 
   const pickWord = useCallback((oldWord?: string) => {
@@ -116,7 +119,7 @@ export function SoundBlaster({ coins, words, onBack, onOpenShop, onRecord }: Sou
   }, []);
 
   useEffect(() => {
-    if (!target.audio || gameOver) return;
+    if (!target.audio || gameOver || paused) return;
     let cancelled = false;
     const speed = 0.0075 + Math.min(round, 12) * 0.0006;
     const halfwayMs = Math.max(1200, Math.round(((83 - 35) / speed) / 2));
@@ -131,7 +134,7 @@ export function SoundBlaster({ coins, words, onBack, onOpenShop, onRecord }: Sou
         audioRepeatTimerRef.current = null;
       }
     };
-  }, [gameOver, playWord, round, target.audio]);
+  }, [gameOver, paused, playWord, round, target.audio]);
 
   const nextRound = useCallback(() => {
     setRound((value) => value + 1);
@@ -142,6 +145,26 @@ export function SoundBlaster({ coins, words, onBack, onOpenShop, onRecord }: Sou
     lockedRef.current = false;
     setBusy(false);
   }, [pickWord]);
+
+  const scheduleNextRound = useCallback((delay: number) => {
+    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(() => {
+      timerRef.current = null;
+      if (pausedRef.current) {
+        pendingNextRoundRef.current = true;
+        return;
+      }
+      nextRound();
+    }, delay);
+  }, [nextRound]);
+
+  useEffect(() => {
+    pausedRef.current = paused;
+    if (!paused && pendingNextRoundRef.current) {
+      pendingNextRoundRef.current = false;
+      nextRound();
+    }
+  }, [nextRound, paused]);
 
   const damage = useCallback(async (message: string) => {
     if (lockedRef.current || gameOver) return;
@@ -154,8 +177,8 @@ export function SoundBlaster({ coins, words, onBack, onOpenShop, onRecord }: Sou
     setShields(nextShields);
     await onRecord(false, target);
     if (nextShields === 0) { setGameOver(true); setBusy(false); }
-    else timerRef.current = window.setTimeout(nextRound, 850);
-  }, [gameOver, nextRound, onRecord, soundOn, target]);
+    else scheduleNextRound(850);
+  }, [gameOver, onRecord, scheduleNextRound, soundOn, target]);
 
   useEffect(() => {
     let frame = 0;
@@ -163,7 +186,7 @@ export function SoundBlaster({ coins, words, onBack, onOpenShop, onRecord }: Sou
     const tick = (now: number) => {
       const delta = Math.min(40, now - previous);
       previous = now;
-      if (!lockedRef.current && !gameOver) {
+      if (!paused && !lockedRef.current && !gameOver) {
         setTargets((current) => {
           const next = current.map((item) => item.status === "falling" ? { ...item, y: item.y + delta * (0.0075 + Math.min(round, 12) * 0.0006) } : item);
           const breached = next.find((item) => item.status === "falling" && item.y >= 83);
@@ -175,7 +198,7 @@ export function SoundBlaster({ coins, words, onBack, onOpenShop, onRecord }: Sou
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [damage, gameOver, round]);
+  }, [damage, gameOver, paused, round]);
 
   useEffect(() => () => {
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
@@ -184,7 +207,7 @@ export function SoundBlaster({ coins, words, onBack, onOpenShop, onRecord }: Sou
   }, []);
 
   const fire = async (choice: SoundTarget) => {
-    if (busy || lockedRef.current || gameOver) return;
+    if (busy || paused || lockedRef.current || gameOver) return;
     lockedRef.current = true;
     setBusy(true);
     if (choice.value === target.vowel) {
@@ -199,13 +222,18 @@ export function SoundBlaster({ coins, words, onBack, onOpenShop, onRecord }: Sou
       setFeedback(`Direct hit! ${target.word} has ${target.vowel === "o" ? "ŏ" : "ŭ"}.`);
       setScore((value) => value + 10 + Math.max(0, 5 - round));
       await onRecord(true, target);
-      timerRef.current = window.setTimeout(nextRound, 650);
+      scheduleNextRound(650);
     } else {
       setTargets((current) => current.map((item) => item.id === choice.id ? { ...item, status: "wrong" } : item));
       lockedRef.current = false;
       await damage(`That was ${choice.value === "o" ? "ŏ" : "ŭ"}. Listen again!`);
     }
   };
+
+  const togglePause = () => setPaused((value) => {
+    pausedRef.current = !value;
+    return !value;
+  });
 
   const repair = () => {
     shieldsRef.current = 3;
@@ -219,6 +247,9 @@ export function SoundBlaster({ coins, words, onBack, onOpenShop, onRecord }: Sou
     setLaser(null);
     setGameOver(false);
     setBusy(false);
+    setPaused(false);
+    pausedRef.current = false;
+    pendingNextRoundRef.current = false;
   };
 
   const shieldPips = useMemo(() => [0, 1, 2], []);
@@ -227,6 +258,7 @@ export function SoundBlaster({ coins, words, onBack, onOpenShop, onRecord }: Sou
     <header className="math-header sound-blaster-header">
       <button className="back-button" type="button" onClick={onBack} aria-label="Back to game menu">←</button>
       <div className="math-title"><span>Sound Blaster</span><strong>Blast the vowel!</strong></div>
+      <button className="math-pause" type="button" onClick={togglePause} disabled={gameOver} aria-label={paused ? "Resume game" : "Pause game"}><span aria-hidden="true">{paused ? "▶" : "Ⅱ"}</span><small>{paused ? "Resume" : "Pause"}</small></button>
       <div className="math-hud-block math-score-block"><span>Score</span><strong>{score}</strong><small>R{round}</small></div>
       <div className="math-hud-block shield-meter"><span>Shields</span><strong>{shieldPips.map((pip) => <i key={pip} className={pip < shields ? "active" : ""}>◆</i>)}</strong></div>
       <button className="coin-purse math-shop" type="button" onClick={onOpenShop} aria-label={`${coins} coins, open prize shop`}><span className="coin coin-small">★</span><strong>{coins}</strong><small>SHOP</small></button>
@@ -236,6 +268,7 @@ export function SoundBlaster({ coins, words, onBack, onOpenShop, onRecord }: Sou
         <div className="math-prompt"><span>Listen twice</span><h1 id="sound-blaster-problem">Which vowel?</h1><p>{feedback}</p></div>
         {targets.map((item) => <button key={item.id} className={`answer-target sound-vowel-target ${item.status}`} style={{ left: `${item.x}%`, top: `${item.y}%` }} type="button" onPointerDown={() => void fire(item)} disabled={busy || gameOver || item.status !== "falling"} aria-label={`Blast short ${item.value}`}><b>{item.value.toUpperCase()}</b></button>)}
         {laser && <span key={laser.id} className="math-laser" style={{ "--shot-angle": `${laser.angle}rad`, "--shot-distance": `${laser.distance}px` } as CSSProperties} aria-hidden="true" />}
+        {paused && !gameOver && <div className="math-paused" role="status"><strong>PAUSED</strong><span>Tap resume when you’re ready.</span></div>}
         <div className="ship-deck"><Spaceship /></div>
         {gameOver && <div className="math-game-over" role="status"><strong>SHIP DOWN!</strong><span>Last word: {target.word}</span><span>Score: {score}</span><button type="button" onClick={repair}>Repair and play again</button></div>}
       </section>

@@ -24,31 +24,35 @@ export type TrophyId =
   | "triforce"
   | "x-wing"
   | "poop-emoji"
-  | "starfox-laser";
+  | "starfox-laser"
+  | "cosmic-compass"
+  | "moon-medal";
 export type PracticeGameId = "sound-sort" | "pair-picker" | "write-it" | "math-blasters" | "sound-blaster";
 export type Vowel = "o" | "u";
 
 const LETTERS: Letter[] = ["b", "d", "p", "q", "n", "u", "c", "k"];
 const PRACTICE_GAMES: PracticeGameId[] = ["sound-sort", "pair-picker", "write-it", "math-blasters", "sound-blaster"];
 const TROPHY_PRICES: Record<TrophyId, number> = {
-  star: 15,
-  "one-up": 30,
-  "fire-flower": 50,
-  "tanooki-suit": 75,
-  "green-pipe": 100,
-  "gold-crown": 150,
-  "master-sword": 200,
-  "hylian-shield": 250,
-  "heros-cap": 300,
-  "star-rod": 350,
-  cappy: 400,
-  yoshi: 450,
-  "poke-ball": 500,
-  "blue-shell": 600,
-  triforce: 750,
-  "x-wing": 900,
-  "poop-emoji": 1200,
-  "starfox-laser": 800,
+  star: 1000,
+  "one-up": 1100,
+  "fire-flower": 1200,
+  "tanooki-suit": 1300,
+  "green-pipe": 1400,
+  "gold-crown": 1500,
+  "master-sword": 1600,
+  "hylian-shield": 1700,
+  "heros-cap": 1800,
+  "star-rod": 1900,
+  cappy: 2000,
+  yoshi: 2100,
+  "poke-ball": 2200,
+  "blue-shell": 2300,
+  triforce: 2400,
+  "x-wing": 2500,
+  "poop-emoji": 2600,
+  "starfox-laser": 2700,
+  "cosmic-compass": 2800,
+  "moon-medal": 2900,
 };
 
 export interface TrackedLetter {
@@ -191,15 +195,29 @@ function fromBase64Url(code: string): string {
   return decodeURIComponent(escape(atob(s)));
 }
 
-/** Serialize a save into a short URL-safe code for device-to-device transfer. */
+export type SharedProgress = Pick<GameState, "coins" | "unlockedTrophies">;
+
+/** Serialize only coins and trophies into a short URL-safe transfer code. */
 export function encodeSave(state: GameState): string {
-  return toBase64Url(JSON.stringify(state));
+  return toBase64Url(JSON.stringify({
+    version: 2,
+    coins: Math.max(0, Math.floor(state.coins)),
+    unlockedTrophies: [...new Set(state.unlockedTrophies)],
+  }));
 }
 
-/** Parse a transferred save code; returns null when the code is invalid. */
-export function decodeSave(code: string): GameState | null {
+/** Parse a coins-and-trophies transfer code; returns null when invalid. */
+export function decodeSave(code: string): SharedProgress | null {
   try {
-    return sanitizeState(JSON.parse(fromBase64Url(code)));
+    const parsed = JSON.parse(fromBase64Url(code)) as Record<string, unknown>;
+    if (typeof parsed.coins !== "number" || !Array.isArray(parsed.unlockedTrophies)) return null;
+    const unlockedTrophies = parsed.unlockedTrophies.filter(
+      (id): id is TrophyId => typeof id === "string" && id in TROPHY_PRICES,
+    );
+    return {
+      coins: Math.max(0, Math.floor(parsed.coins)),
+      unlockedTrophies: [...new Set(unlockedTrophies)],
+    };
   } catch {
     return null;
   }
@@ -319,12 +337,20 @@ export const api = {
     return next;
   },
 
+  async resetMissedWords(_args: Record<string, never>): Promise<GameState> {
+    const before = loadState();
+    const next = { ...before, wordStats: [] };
+    saveState(next);
+    return next;
+  },
+
   async importSave(args: { code: string }): Promise<{
     ok: boolean;
     state: GameState;
   }> {
-    const next = decodeSave(args.code);
-    if (!next) return { ok: false, state: loadState() };
+    const imported = decodeSave(args.code);
+    if (!imported) return { ok: false, state: loadState() };
+    const next = { ...loadState(), ...imported };
     saveState(next);
     return { ok: true, state: next };
   },

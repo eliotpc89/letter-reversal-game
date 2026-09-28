@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { SafeAreaTopScrim } from "./safe-area";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
-import { api, encodeSave, type ApiResponse, type Vowel } from "./api";
+import { api, encodeSave, type ApiResponse, type TrophyId, type Vowel } from "./api";
 import { classifyDrawing, isConfidentMatch, LETTERS, type Letter } from "./draw-classifier";
 import bSound from "./assets/letters/b.mp3";
 import dSound from "./assets/letters/d.mp3";
@@ -15,7 +15,6 @@ import { VOWEL_AUDIO } from "./assets/vowels";
 import { MathBlasters } from "./MathBlasters";
 import { SoundBlaster } from "../SoundBlaster";
 
-type TrophyId = "star" | "one-up" | "fire-flower" | "tanooki-suit" | "green-pipe" | "gold-crown" | "master-sword" | "hylian-shield" | "heros-cap" | "star-rod" | "cappy" | "yoshi" | "poke-ball" | "blue-shell" | "triforce" | "x-wing" | "poop-emoji" | "starfox-laser";
 type GameState = ApiResponse<typeof api, "getGameState">;
 type Verdict = "correct" | "wrong" | "retry" | null;
 type View = "menu" | "bed" | "sound-sort" | "pair-picker" | "write-it" | "math-blasters" | "sound-blaster";
@@ -26,24 +25,26 @@ type PracticeRecorder = (gameId: PracticeGameId, correct: boolean, word?: Practi
 
 type Trophy = { id: TrophyId; name: string; price: number; color: string };
 const TROPHIES: Trophy[] = [
-  { id: "star", name: "Power Star", price: 15, color: "#ffc928" },
-  { id: "one-up", name: "1-Up Mushroom", price: 30, color: "#2f9e68" },
-  { id: "fire-flower", name: "Fire Flower", price: 50, color: "#e64b3c" },
-  { id: "tanooki-suit", name: "Tanooki Suit", price: 75, color: "#a76635" },
-  { id: "green-pipe", name: "Green Pipe", price: 100, color: "#1f9c55" },
-  { id: "gold-crown", name: "Golden Crown", price: 150, color: "#f0ad00" },
-  { id: "master-sword", name: "Master Sword", price: 200, color: "#7fb2e5" },
-  { id: "hylian-shield", name: "Hylian Shield", price: 250, color: "#e8b93c" },
-  { id: "heros-cap", name: "Hero's Cap", price: 300, color: "#2f9e68" },
-  { id: "star-rod", name: "Star Rod", price: 350, color: "#ffd94d" },
-  { id: "cappy", name: "Cappy", price: 400, color: "#e64b3c" },
-  { id: "yoshi", name: "Yoshi", price: 450, color: "#46bc73" },
-  { id: "poke-ball", name: "Pok\u00e9 Ball", price: 500, color: "#e64b3c" },
-  { id: "blue-shell", name: "Blue Shell", price: 600, color: "#2a75bb" },
-  { id: "triforce", name: "Triforce", price: 750, color: "#f0c020" },
-  { id: "x-wing", name: "X-Wing", price: 900, color: "#b9c4d1" },
-  { id: "poop-emoji", name: "Poop Emoji", price: 1200, color: "#9a6a3b" },
-  { id: "starfox-laser", name: "Star Fox Laser", price: 800, color: "#8fa3b8" },
+  { id: "star", name: "Power Star", price: 1000, color: "#ffc928" },
+  { id: "one-up", name: "1-Up Mushroom", price: 1100, color: "#2f9e68" },
+  { id: "fire-flower", name: "Fire Flower", price: 1200, color: "#e64b3c" },
+  { id: "tanooki-suit", name: "Tanooki Suit", price: 1300, color: "#a76635" },
+  { id: "green-pipe", name: "Green Pipe", price: 1400, color: "#1f9c55" },
+  { id: "gold-crown", name: "Golden Crown", price: 1500, color: "#f0ad00" },
+  { id: "master-sword", name: "Master Sword", price: 1600, color: "#7fb2e5" },
+  { id: "hylian-shield", name: "Hylian Shield", price: 1700, color: "#e8b93c" },
+  { id: "heros-cap", name: "Hero's Cap", price: 1800, color: "#2f9e68" },
+  { id: "star-rod", name: "Star Rod", price: 1900, color: "#ffd94d" },
+  { id: "cappy", name: "Cappy", price: 2000, color: "#e64b3c" },
+  { id: "yoshi", name: "Yoshi", price: 2100, color: "#46bc73" },
+  { id: "poke-ball", name: "Pok\u00e9 Ball", price: 2200, color: "#e64b3c" },
+  { id: "blue-shell", name: "Blue Shell", price: 2300, color: "#2a75bb" },
+  { id: "triforce", name: "Triforce", price: 2400, color: "#f0c020" },
+  { id: "x-wing", name: "X-Wing", price: 2500, color: "#b9c4d1" },
+  { id: "poop-emoji", name: "Poop Emoji", price: 2600, color: "#9a6a3b" },
+  { id: "starfox-laser", name: "Star Fox Laser", price: 2700, color: "#8fa3b8" },
+  { id: "cosmic-compass", name: "Cosmic Compass", price: 2800, color: "#55d6ff" },
+  { id: "moon-medal", name: "Moon Medal", price: 2900, color: "#c5b8ff" },
 ];
 
 const SOUNDS: Record<Letter, string> = { b: bSound, d: dSound, p: pSound, q: qSound, n: nSound, u: uSound, c: cSound, k: kSound };
@@ -121,6 +122,8 @@ function TrophyIcon({ id }: { id: TrophyId }) {
   if (id === "x-wing") return <svg viewBox="0 0 64 64" aria-hidden="true"><polygon points="16,12 48,44 44,48 12,16" fill="#b9c4d1" stroke="#14213d" strokeWidth="3" strokeLinejoin="round"/><polygon points="48,12 16,44 20,48 52,16" fill="#c9d2dd" stroke="#14213d" strokeWidth="3" strokeLinejoin="round"/><rect x="28" y="14" width="8" height="36" rx="3" fill="#aeb9c6" stroke="#14213d" strokeWidth="3"/><polygon points="28,14 36,14 32,6" fill="#aeb9c6" stroke="#14213d" strokeWidth="3" strokeLinejoin="round"/><ellipse cx="32" cy="24" rx="3" ry="5" fill="#5a6b7d" stroke="#14213d" strokeWidth="2"/><rect x="24" y="34" width="16" height="5" fill="#e64b3c"/><circle cx="14" cy="14" r="3.5" fill="#e64b3c" stroke="#14213d" strokeWidth="2"/><circle cx="50" cy="14" r="3.5" fill="#e64b3c" stroke="#14213d" strokeWidth="2"/><circle cx="14" cy="46" r="3.5" fill="#e64b3c" stroke="#14213d" strokeWidth="2"/><circle cx="50" cy="46" r="3.5" fill="#e64b3c" stroke="#14213d" strokeWidth="2"/></svg>;
   if (id === "poop-emoji") return <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M33 20c1-4 4-6 8-6" fill="none" stroke="#14213d" strokeWidth="8" strokeLinecap="round"/><path d="M33 20c1-4 4-6 8-6" fill="none" stroke="#9a6a3b" strokeWidth="5" strokeLinecap="round"/><ellipse cx="32" cy="45" rx="16" ry="10" fill="#9a6a3b" stroke="#14213d" strokeWidth="3.5"/><ellipse cx="32" cy="35" rx="12" ry="8.5" fill="#9a6a3b" stroke="#14213d" strokeWidth="3.5"/><ellipse cx="33" cy="26" rx="8" ry="6.5" fill="#9a6a3b" stroke="#14213d" strokeWidth="3.5"/><circle cx="27" cy="33" r="4.5" fill="#fffdf7" stroke="#14213d" strokeWidth="2"/><circle cx="28" cy="34" r="1.8" fill="#14213d"/><circle cx="38" cy="33" r="4.5" fill="#fffdf7" stroke="#14213d" strokeWidth="2"/><circle cx="39" cy="34" r="1.8" fill="#14213d"/><path d="M26 41q6 5 13 0" fill="none" stroke="#14213d" strokeWidth="2.5" strokeLinecap="round"/></svg>;
   if (id === "starfox-laser") return <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="26" width="26" height="14" rx="5" fill="#8fa3b8" stroke="#14213d" strokeWidth="4"/><rect x="32" y="29" width="9" height="8" fill="#5a6b7d" stroke="#14213d" strokeWidth="3"/><circle cx="44" cy="33" r="4" fill="#ff4d4d" stroke="#14213d" strokeWidth="2.5"/><path d="M50 33h12" stroke="#ff6b6b" strokeWidth="5" strokeLinecap="round"/><path d="M50 25h8M50 41h8" stroke="#ff6b6b" strokeWidth="3" strokeLinecap="round"/><rect x="11" y="40" width="9" height="12" rx="3" fill="#5a6b7d" stroke="#14213d" strokeWidth="3"/><rect x="14" y="20" width="10" height="6" rx="2" fill="#5a6b7d" stroke="#14213d" strokeWidth="2.5"/></svg>;
+  if (id === "cosmic-compass") return <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="24" fill="#55d6ff" stroke="#14213d" strokeWidth="4"/><path d="m38 26-7 14-6-7 7-14Z" fill="#fffdf7" stroke="#14213d" strokeWidth="3" strokeLinejoin="round"/><circle cx="32" cy="32" r="4" fill="#ffc928" stroke="#14213d" strokeWidth="2"/></svg>;
+  if (id === "moon-medal") return <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M23 7h18l-5 18H28Z" fill="#c5b8ff" stroke="#14213d" strokeWidth="4"/><circle cx="32" cy="39" r="18" fill="#c5b8ff" stroke="#14213d" strokeWidth="4"/><path d="M38 29c-8 1-12 10-6 17-8-1-13-8-11-15 2-8 10-12 17-9Z" fill="#fffdf7" stroke="#14213d" strokeWidth="2.5"/></svg>;
   return <svg viewBox="0 0 64 64" aria-hidden="true"><path d="m32 5 8 17 19 2-14 13 4 19-17-10-17 10 4-19L5 24l19-2Z" fill="#ffc928" stroke="#7f4d00" strokeWidth="4" strokeLinejoin="round"/></svg>;
 }
 
@@ -220,15 +223,15 @@ function PrizeShop({ state, open, onClose, onBuy, buying, message }: { state: Ga
   </div>;
 }
 
-function MissedWordsReview({ state, onFocus }: { state: GameState | undefined; onFocus: () => void }) {
+function MissedWordsReview({ state, onFocus, onReset, resetting }: { state: GameState | undefined; onFocus: () => void; onReset: () => void; resetting: boolean }) {
   const missed = [...(state?.wordStats ?? [])].filter((row) => row.misses > 0).sort((a, b) => b.misses - a.misses || a.word.localeCompare(b.word));
   return <section className="missed-review" aria-labelledby="missed-words-title">
-    <div className="missed-review-topline"><div><h2 id="missed-words-title">Missed words</h2><p>{missed.length ? "Words that need another pass." : "Missed words will show up here as Miles plays."}</p></div>{missed.length > 0 && <button type="button" onClick={onFocus}>Focus these</button>}</div>
+    <div className="missed-review-topline"><div><h2 id="missed-words-title">Missed words</h2><p>{missed.length ? "Words that need another pass." : "Missed words will show up here as Miles plays."}</p></div><div className="missed-review-actions">{missed.length > 0 && <button type="button" onClick={onFocus}>Focus these</button>}<button type="button" onClick={onReset} disabled={missed.length === 0 || resetting}>{resetting ? "Resetting…" : "Reset missed words"}</button></div></div>
     {missed.length > 0 && <div className="missed-word-list">{missed.slice(0, 12).map((row) => <span key={row.word} className="missed-word-chip"><b>{row.word}</b><small>{row.vowel === "o" ? "ŏ" : "ŭ"} · {row.misses} miss{row.misses === 1 ? "" : "es"}</small></span>)}</div>}
   </section>;
 }
 
-function GameMenu({ state, onPlay, onOpenShop }: { state: GameState | undefined; onPlay: (view: View, focusMissed?: boolean) => void; onOpenShop: () => void }) {
+function GameMenu({ state, onPlay, onOpenShop, onResetMissed, resettingMissed }: { state: GameState | undefined; onPlay: (view: View, focusMissed?: boolean) => void; onOpenShop: () => void; onResetMissed: () => void; resettingMissed: boolean }) {
   const games: Array<{ view: View; label: string; title: string; note: string; art: string; className: string }> = [
     { view: "sound-sort", label: "Play O or U", title: "o or u?", note: `${SOUND_SORT_WORDS.length} short-vowel words in the mix.`, art: "ŏ  ŭ", className: "vowel-tile" },
     { view: "pair-picker", label: "Play Pair Picker", title: "Pair picker", note: "Listen closely, then sort the word.", art: "cot · cut", className: "pair-tile" },
@@ -288,7 +291,7 @@ function GameMenu({ state, onPlay, onOpenShop }: { state: GameState | undefined;
         <span className="play-pill">Play <span aria-hidden="true">→</span></span>
       </button>
 
-      <MissedWordsReview state={state} onFocus={() => onPlay("sound-blaster", true)} />
+      <MissedWordsReview state={state} onFocus={() => onPlay("sound-blaster", true)} onReset={onResetMissed} resetting={resettingMissed} />
 
       <section className="coming-row" aria-labelledby="coming-title">
         <div><h2 id="coming-title">More games soon</h2><p>Every game uses the same coins and prizes.</p></div>
@@ -512,16 +515,19 @@ function Scoreboard({ state, onReset, resetting }: { state: GameState; onReset: 
   const [open, setOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [shareNote, setShareNote] = useState<string | null>(null);
+  const [shareLink, setShareLink] = useState<string | null>(null);
   const shareProgress = async () => {
     setSharing(true);
     setShareNote(null);
     try {
       const link = `${window.location.origin}${window.location.pathname}#save=${encodeSave(state)}`;
+      setShareLink(link);
       if (typeof navigator.share === "function") {
-        await navigator.share({ title: "Letter Reversal progress", url: link });
+        await navigator.share({ title: "Miles' coins and trophies", text: "Open this to bring over Miles' coins and trophies.", url: link });
+        setShareNote("Coins + trophies link ready.");
       } else if (navigator.clipboard) {
         await navigator.clipboard.writeText(link);
-        setShareNote("Progress link copied — open it on the iPad to import.");
+        setShareNote("Coins + trophies link copied — open it on the other device to import.");
       } else {
         setShareNote("Sharing isn't available in this browser.");
       }
@@ -551,8 +557,9 @@ function Scoreboard({ state, onReset, resetting }: { state: GameState; onReset: 
       </div>
       {!armed ? <button className="reset-link" type="button" onClick={() => setArmed(true)}>Reset progress…</button> :
         <div className="reset-row"><span>Erase coins, stats, and trophies?</span><button type="button" onClick={() => { onReset(); setArmed(false); }} disabled={resetting}>Yes, reset</button><button type="button" onClick={() => setArmed(false)}>Cancel</button></div>}
-      <button className="reset-link" type="button" onClick={() => void shareProgress()} disabled={sharing}>{sharing ? "Preparing link…" : "Share progress to another device…"}</button>
+      <button className="reset-link" type="button" onClick={() => void shareProgress()} disabled={sharing}>{sharing ? "Preparing link…" : "Create coins + trophies link…"}</button>
       {shareNote && <p className="share-note" role="status">{shareNote}</p>}
+      {shareLink && <a className="share-link" href={shareLink}>Open saved coins + trophies link</a>}
     </div>}
   </section>;
 }
@@ -614,6 +621,11 @@ export function App() {
 
   const reset = useMutation({
     mutationFn: () => api.resetProgress({ confirm: true }),
+    onSuccess: (next) => queryClient.setQueryData(["game-state"], next),
+  });
+
+  const resetMissedWords = useMutation({
+    mutationFn: () => api.resetMissedWords({}),
     onSuccess: (next) => queryClient.setQueryData(["game-state"], next),
   });
 
@@ -810,7 +822,7 @@ export function App() {
   return <div className="game-shell">
     <SafeAreaTopScrim backgroundColor="var(--bg)" />
     {importCode && <div className="import-banner" role="alertdialog" aria-label="Import progress">
-      <div><strong>Progress link opened.</strong><span>Import coins, trophies, and scores from your other device? This replaces this device's progress.</span></div>
+      <div><strong>Coins + trophies link opened.</strong><span>Import these coins and trophies? Other history on this device will stay.</span></div>
       <div className="import-actions"><button type="button" onClick={() => void doImport()}>Import</button><button type="button" onClick={() => setImportCode(null)}>Not now</button></div>
     </div>}
     {importDone && <p className="import-note" role="status">Progress imported! <button type="button" onClick={() => setImportDone(false)}>OK</button></p>}
@@ -821,6 +833,8 @@ export function App() {
       state={state}
       onPlay={startGame}
       onOpenShop={() => { setShopMessage(null); setShopOpen(true); }}
+      onResetMissed={() => resetMissedWords.mutate()}
+      resettingMissed={resetMissedWords.isPending}
     />}
 
     {view === "sound-sort" && state && <SoundSortGame state={state} onBack={() => startGame("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} onRecord={savePractice} />}
