@@ -57,7 +57,9 @@ function makeTargets(problem: MathProblem): AnswerTarget[] {
     id: `${value}-${index}-${Math.random()}`,
     value,
     x: positions[index] ?? 50,
-    y: -7 - (index % 2) * 4,
+    // Keep every bubble below the prompt. They only move downward, so this
+    // creates a protected equation/header lane at the top of the playfield.
+    y: 27 + (index % 2) * 3,
     status: "falling" as const,
   }));
 }
@@ -148,6 +150,15 @@ export function MathBlasters({ coins, onBack, onOpenShop, onRecord }: MathBlaste
   const [busy, setBusy] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
 
+  useEffect(() => {
+    document.documentElement.classList.add("math-fullscreen");
+    document.body.classList.add("math-fullscreen");
+    return () => {
+      document.documentElement.classList.remove("math-fullscreen");
+      document.body.classList.remove("math-fullscreen");
+    };
+  }, []);
+
   const nextRound = useCallback(() => {
     const next = round + 1;
     const nextProblem = makeProblem(next);
@@ -188,7 +199,7 @@ export function MathBlasters({ coins, onBack, onOpenShop, onRecord }: MathBlaste
       if (!lockedRef.current && !gameOver) {
         setTargets((current) => {
           const next = current.map((target) => target.status === "falling"
-            ? { ...target, y: target.y + delta * (0.022 + Math.min(round, 12) * 0.0018) }
+            ? { ...target, y: target.y + delta * (0.009 + Math.min(round, 12) * 0.0008) }
             : target);
           const breached = next.find((target) => target.status === "falling" && target.y >= 83);
           if (breached) void damage("A target got through — protect your ship!");
@@ -268,7 +279,7 @@ export function MathBlasters({ coins, onBack, onOpenShop, onRecord }: MathBlaste
           disabled={busy || gameOver || target.status !== "falling"}
           aria-label={`Answer ${target.value}`}
         >{target.value}</button>)}
-        {laser && <span key={laser.id} className="math-laser" style={{ left: "50%", top: "86%", width: `${Math.hypot(laser.x - 50, laser.y - 86)}%`, transform: `rotate(${Math.atan2(laser.y - 86, laser.x - 50)}rad)` }} aria-hidden="true" />}
+        {laser && <span key={laser.id} className="math-laser" style={{ left: `${laser.x}%`, top: `${laser.y}%`, transform: `translate(-50%, -50%) rotate(${Math.atan2(laser.y - 86, laser.x - 50)}rad)` }} aria-hidden="true" />}
         <div className="ship-deck"><Spaceship /></div>
         {gameOver && <div className="math-game-over" role="status"><strong>SHIP DOWN!</strong><span>Score: {score}</span><button type="button" onClick={repair}>Repair and play again</button></div>}
       </section>
