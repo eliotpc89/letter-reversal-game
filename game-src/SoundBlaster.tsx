@@ -234,7 +234,6 @@ export function SoundBlaster({ coins, words, onBack, onOpenShop, onRecord }: Sou
     <main className="math-main">
       <section ref={stageRef} className="math-stage sound-blaster-stage" aria-labelledby="sound-blaster-problem">
         <div className="math-prompt"><span>Listen twice</span><h1 id="sound-blaster-problem">Which vowel?</h1><p>{feedback}</p></div>
-        <button className="sound-blaster-listen" type="button" onClick={() => void playWord(target.audio).catch(() => undefined)} disabled={busy || gameOver}>🔊 Replay word</button>
         {targets.map((item) => <button key={item.id} className={`answer-target sound-vowel-target ${item.status}`} style={{ left: `${item.x}%`, top: `${item.y}%` }} type="button" onPointerDown={() => void fire(item)} disabled={busy || gameOver || item.status !== "falling"} aria-label={`Blast short ${item.value}`}><b>{item.value.toUpperCase()}</b></button>)}
         {laser && <span key={laser.id} className="math-laser" style={{ "--shot-angle": `${laser.angle}rad`, "--shot-distance": `${laser.distance}px` } as CSSProperties} aria-hidden="true" />}
         <div className="ship-deck"><Spaceship /></div>
