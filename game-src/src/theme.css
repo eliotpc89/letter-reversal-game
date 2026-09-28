@@ -187,7 +187,7 @@ button { font: inherit; }
   margin-bottom: 24px;
 }
 .sound-check-kicker { margin: 0 0 6px; color: #79dcff; font-size: 13px; font-weight: 900; letter-spacing: .12em; }
-.sound-check-header h1 { margin: 0; font-size: clamp(38px, 7vw, 64px); line-height: .95; }
+.sound-check-header h1 { margin: 0; color: #fff; font-size: clamp(38px, 7vw, 64px); line-height: .95; }
 .sound-check-header p:last-child { margin: 12px 0 0; color: #c8dafa; font-size: 17px; font-weight: 700; }
 .sound-check-back {
   flex: 0 0 auto;
