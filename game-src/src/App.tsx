@@ -42,7 +42,7 @@ const TROPHIES: Trophy[] = [
   { id: "triforce", name: "Triforce", price: 2400, color: "#f0c020" },
   { id: "x-wing", name: "X-Wing", price: 2500, color: "#b9c4d1" },
   { id: "poop-emoji", name: "Poop Emoji", price: 2600, color: "#9a6a3b" },
-  { id: "starfox-laser", name: "Star Fox Laser", price: 2700, color: "#8fa3b8" },
+  { id: "starfox-laser", name: "Star Fox Laser", price: 800, color: "#8fa3b8" },
   { id: "cosmic-compass", name: "Cosmic Compass", price: 2800, color: "#55d6ff" },
   { id: "moon-medal", name: "Moon Medal", price: 2900, color: "#c5b8ff" },
 ];

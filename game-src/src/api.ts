@@ -50,7 +50,7 @@ const TROPHY_PRICES: Record<TrophyId, number> = {
   triforce: 2400,
   "x-wing": 2500,
   "poop-emoji": 2600,
-  "starfox-laser": 2700,
+  "starfox-laser": 800,
   "cosmic-compass": 2800,
   "moon-medal": 2900,
 };
