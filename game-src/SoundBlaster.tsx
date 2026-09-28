@@ -50,26 +50,23 @@ function playTone(ref: MutableRefObject<AudioContext | null>, kind: "laser" | "d
   });
 }
 
-function useDoubleWordAudio() {
+function useWordAudio() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   useEffect(() => () => audioRef.current?.pause(), []);
   return useCallback(async (src: string) => {
+    if (!src) return;
     const audio = audioRef.current ?? new Audio();
     audioRef.current = audio;
-    const playOnce = () => new Promise<void>((resolve, reject) => {
-      const done = () => { audio.removeEventListener("ended", done); resolve(); };
-      audio.addEventListener("ended", done, { once: true });
-      void audio.play().catch((error) => { audio.removeEventListener("ended", done); reject(error); });
-    });
     audio.pause();
     audio.src = src;
     audio.preload = "auto";
     audio.volume = 1;
     audio.currentTime = 0;
-    await playOnce();
-    await new Promise((resolve) => window.setTimeout(resolve, 520));
-    audio.currentTime = 0;
-    await playOnce();
+    await new Promise<void>((resolve, reject) => {
+      const done = () => { audio.removeEventListener("ended", done); resolve(); };
+      audio.addEventListener("ended", done, { once: true });
+      void audio.play().catch((error) => { audio.removeEventListener("ended", done); reject(error); });
+    });
   }, []);
 }
 
@@ -89,6 +86,7 @@ export function SoundBlaster({ coins, words, onBack, onOpenShop, onRecord }: Sou
   const audioRef = useRef<AudioContext | null>(null);
   const stageRef = useRef<HTMLElement | null>(null);
   const timerRef = useRef<number | null>(null);
+  const audioRepeatTimerRef = useRef<number | null>(null);
   const lockedRef = useRef(false);
   const shieldsRef = useRef(3);
   const [round, setRound] = useState(1);
@@ -96,12 +94,12 @@ export function SoundBlaster({ coins, words, onBack, onOpenShop, onRecord }: Sou
   const [targets, setTargets] = useState<SoundTarget[]>(() => makeTargets());
   const [shields, setShields] = useState(3);
   const [score, setScore] = useState(0);
-  const [feedback, setFeedback] = useState("Hear the word twice, then blast its vowel!");
+  const [feedback, setFeedback] = useState("Listen now — it will play again halfway through!");
   const [laser, setLaser] = useState<Laser | null>(null);
   const [gameOver, setGameOver] = useState(false);
   const [busy, setBusy] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
-  const playWord = useDoubleWordAudio();
+  const playWord = useWordAudio();
 
   const pickWord = useCallback((oldWord?: string) => {
     const choices = words.filter((item) => item.word !== oldWord);
@@ -117,11 +115,29 @@ export function SoundBlaster({ coins, words, onBack, onOpenShop, onRecord }: Sou
     };
   }, []);
 
+  useEffect(() => {
+    if (!target.audio || gameOver) return;
+    let cancelled = false;
+    const speed = 0.0075 + Math.min(round, 12) * 0.0006;
+    const halfwayMs = Math.max(1200, Math.round(((83 - 35) / speed) / 2));
+    void playWord(target.audio).catch(() => undefined);
+    audioRepeatTimerRef.current = window.setTimeout(() => {
+      if (!cancelled && !lockedRef.current && !gameOver) void playWord(target.audio).catch(() => undefined);
+    }, halfwayMs);
+    return () => {
+      cancelled = true;
+      if (audioRepeatTimerRef.current !== null) {
+        window.clearTimeout(audioRepeatTimerRef.current);
+        audioRepeatTimerRef.current = null;
+      }
+    };
+  }, [gameOver, playWord, round, target.audio]);
+
   const nextRound = useCallback(() => {
     setRound((value) => value + 1);
     setTarget((old) => pickWord(old.word));
     setTargets(makeTargets());
-    setFeedback("Hear it twice, then choose ŏ or ŭ!");
+    setFeedback("Listen now — it will play again halfway through!");
     setLaser(null);
     lockedRef.current = false;
     setBusy(false);
@@ -199,7 +215,7 @@ export function SoundBlaster({ coins, words, onBack, onOpenShop, onRecord }: Sou
     setTargets(makeTargets());
     setShields(3);
     setScore(0);
-    setFeedback("New ship, new mission. Hear the word twice!");
+    setFeedback("New ship, new mission. Listen now — it will play again halfway through!");
     setLaser(null);
     setGameOver(false);
     setBusy(false);
@@ -218,13 +234,13 @@ export function SoundBlaster({ coins, words, onBack, onOpenShop, onRecord }: Sou
     <main className="math-main">
       <section ref={stageRef} className="math-stage sound-blaster-stage" aria-labelledby="sound-blaster-problem">
         <div className="math-prompt"><span>Listen twice</span><h1 id="sound-blaster-problem">Which vowel?</h1><p>{feedback}</p></div>
-        <button className="sound-blaster-listen" type="button" onClick={() => void playWord(target.audio).catch(() => undefined)} disabled={busy || gameOver}>🔊 Hear the word twice</button>
+        <button className="sound-blaster-listen" type="button" onClick={() => void playWord(target.audio).catch(() => undefined)} disabled={busy || gameOver}>🔊 Replay word</button>
         {targets.map((item) => <button key={item.id} className={`answer-target sound-vowel-target ${item.status}`} style={{ left: `${item.x}%`, top: `${item.y}%` }} type="button" onPointerDown={() => void fire(item)} disabled={busy || gameOver || item.status !== "falling"} aria-label={`Blast short ${item.value}`}><b>{item.value.toUpperCase()}</b></button>)}
         {laser && <span key={laser.id} className="math-laser" style={{ "--shot-angle": `${laser.angle}rad`, "--shot-distance": `${laser.distance}px` } as CSSProperties} aria-hidden="true" />}
         <div className="ship-deck"><Spaceship /></div>
         {gameOver && <div className="math-game-over" role="status"><strong>SHIP DOWN!</strong><span>Last word: {target.word}</span><span>Score: {score}</span><button type="button" onClick={repair}>Repair and play again</button></div>}
       </section>
-      <div className="math-controls"><p>Listen twice, then blast the vowel sound.</p><button type="button" onClick={() => setSoundOn((value) => !value)}>{soundOn ? "🔊 Sounds on" : "🔇 Sounds off"}</button></div>
+      <div className="math-controls"><p>The word plays at the start and halfway through.</p><button type="button" onClick={() => setSoundOn((value) => !value)}>{soundOn ? "🔊 Sounds on" : "🔇 Sounds off"}</button></div>
     </main>
   </>;
 }

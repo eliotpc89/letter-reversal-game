@@ -18,7 +18,7 @@ const OUTDIR = "./dist";
 await rm(OUTDIR, { force: true, recursive: true });
 
 const result = await Bun.build({
-  entrypoints: [ENTRY],
+  entrypoints: [ENTRY, "./sound-check.html"],
   outdir: OUTDIR,
   minify: true,
   define: {

@@ -47,13 +47,13 @@ const TROPHIES: Trophy[] = [
 ];
 
 const SOUNDS: Record<Letter, string> = { b: bSound, d: dSound, p: pSound, q: qSound, n: nSound, u: uSound, c: cSound, k: kSound };
-const SHORT_O_WORDS = [
+export const SHORT_O_WORDS = [
   "cot", "cop", "cob", "cod", "bog", "dog", "hog", "lock", "dock", "sock", "mock", "pop",
   "not", "rot", "shot", "fond", "hot", "hop", "pot", "top", "mop", "rock", "box", "fox",
   "dot", "log", "rod", "pond", "drop", "shop", "stop", "clock", "block", "flock", "shock", "stock", "trot", "stomp", "chomp",
   "bob", "fog", "got", "jog", "job", "lot", "nod", "pod", "rob", "sob", "sod", "tot", "chop", "clog", "crop", "frog", "plop", "prop", "spot",
 ] as const;
-const SHORT_U_WORDS = [
+export const SHORT_U_WORDS = [
   "cut", "cup", "cub", "cud", "bug", "dug", "hug", "luck", "duck", "suck", "muck", "pup",
   "nut", "rut", "shut", "fund", "hut", "hum", "hub", "pug", "puck", "tub", "tug", "tuck",
   "mug", "stuck", "truck", "cluck", "buck", "bus", "bud", "run", "rug", "rub", "sun",
