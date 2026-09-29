@@ -32,11 +32,13 @@ function useWordAudio() {
 
 export function TrickWordSpelling({ coins, words, onBack, onOpenShop, onRecord }: TrickWordSpellingProps) {
   const playWord = useWordAudio();
+  const [questionIndex, setQuestionIndex] = useState(0);
   const [target, setTarget] = useState<TrickWord>(() => words[0] ?? { word: "said", audio: "" });
   const [entered, setEntered] = useState("");
   const [feedback, setFeedback] = useState("Listen, then spell the trick word.");
   const [verdict, setVerdict] = useState<"correct" | "wrong" | null>(null);
   const [busy, setBusy] = useState(false);
+  const [testComplete, setTestComplete] = useState(false);
 
   useEffect(() => {
     setEntered("");
@@ -54,8 +56,23 @@ export function TrickWordSpelling({ coins, words, onBack, onOpenShop, onRecord }
   }, [target]);
 
   const next = () => {
-    const choices = words.filter((item) => item.word !== target.word);
-    setTarget(shuffled(choices.length ? choices : words)[0] ?? { word: "said", audio: "" });
+    const nextIndex = questionIndex + 1;
+    if (nextIndex >= words.length) {
+      setTestComplete(true);
+      setFeedback("Test complete! You finished all of the Unit 4 trick words.");
+      return;
+    }
+    setQuestionIndex(nextIndex);
+    setTarget(words[nextIndex] ?? { word: "said", audio: "" });
+  };
+
+  const restart = () => {
+    setQuestionIndex(0);
+    setTarget(words[0] ?? { word: "said", audio: "" });
+    setTestComplete(false);
+    setEntered("");
+    setVerdict(null);
+    setFeedback("Listen, then spell the trick word.");
   };
 
   const check = async () => {
@@ -79,7 +96,7 @@ export function TrickWordSpelling({ coins, words, onBack, onOpenShop, onRecord }
     </header>
     <main className="practice-main trick-main">
       <section className="practice-stage trick-stage" aria-labelledby="trick-question">
-        <p className="round-count">Listen · type · check</p>
+        <p className="round-count">Question {Math.min(questionIndex + 1, words.length)} of {words.length} · Listen · type · check</p>
         <h1 id="trick-question">Spell the trick word.</h1>
         <button className="listen-orb trick-listen" type="button" onClick={() => void playWord(target.audio).catch(() => undefined)} aria-label="Hear the trick word"><span className="trick-speaker" aria-hidden="true">🔊</span><span>Listen again</span></button>
         <div className="typing-word" aria-label={`Typed word: ${entered || "empty"}`}>
@@ -93,7 +110,7 @@ export function TrickWordSpelling({ coins, words, onBack, onOpenShop, onRecord }
         </div>
       </section>
       {!verdict && <button className="practice-check" type="button" onClick={() => void check()} disabled={busy || !entered}>{busy ? "Checking…" : "Check spelling"}</button>}
-      {verdict && <div className={`trick-result ${verdict}`} role="status"><div><strong>{verdict === "correct" ? "Great spelling!" : "Good try!"}</strong><span>{feedback}</span></div><button type="button" onClick={next}>Next word <span aria-hidden="true">→</span></button></div>}
+      {verdict && <div className={`trick-result ${verdict}`} role="status"><div><strong>{testComplete ? "Test complete!" : verdict === "correct" ? "Great spelling!" : "Good try!"}</strong><span>{feedback}</span></div>{testComplete ? <button type="button" onClick={restart}>Start again <span aria-hidden="true">↻</span></button> : <button type="button" onClick={next}>Next word <span aria-hidden="true">→</span></button>}</div>}
       <p className="grownup-tip">The word is hidden until he finishes typing.</p>
     </main>
   </>;
