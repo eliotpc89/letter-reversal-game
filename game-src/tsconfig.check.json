@@ -1,0 +1,1 @@
+{"compilerOptions":{"jsx":"react-jsx","module":"esnext","moduleResolution":"bundler","noEmit":true,"noUncheckedIndexedAccess":true,"skipLibCheck":true,"strict":true,"target":"es2022","types":[]},"include":["src","sound-check.ts"]}

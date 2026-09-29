@@ -6,16 +6,19 @@ export function Scoreboard({ state, onReset, resetting }: { state: GameState; on
   const [open, setOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [shareNote, setShareNote] = useState<string | null>(null);
+  const [shareLink, setShareLink] = useState<string | null>(null);
   const shareProgress = async () => {
     setSharing(true);
     setShareNote(null);
     try {
       const link = `${window.location.origin}${window.location.pathname}#save=${encodeSave(state)}`;
+      setShareLink(link);
       if (typeof navigator.share === "function") {
-        await navigator.share({ title: "Letter Reversal progress", url: link });
+        await navigator.share({ title: "Miles' coins and trophies", text: "Open this to bring over Miles' coins and trophies.", url: link });
+        setShareNote("Coins + trophies link ready.");
       } else if (navigator.clipboard) {
         await navigator.clipboard.writeText(link);
-        setShareNote("Progress link copied — open it on the iPad to import.");
+        setShareNote("Coins + trophies link copied — open it on the other device to import.");
       } else {
         setShareNote("Sharing isn't available in this browser.");
       }
@@ -45,8 +48,9 @@ export function Scoreboard({ state, onReset, resetting }: { state: GameState; on
       </div>
       {!armed ? <button className="reset-link" type="button" onClick={() => setArmed(true)}>Reset progress…</button> :
         <div className="reset-row"><span>Erase coins, stats, and trophies?</span><button type="button" onClick={() => { onReset(); setArmed(false); }} disabled={resetting}>Yes, reset</button><button type="button" onClick={() => setArmed(false)}>Cancel</button></div>}
-      <button className="reset-link" type="button" onClick={() => void shareProgress()} disabled={sharing}>{sharing ? "Preparing link…" : "Share progress to another device…"}</button>
+      <button className="reset-link" type="button" onClick={() => void shareProgress()} disabled={sharing}>{sharing ? "Preparing link…" : "Create coins + trophies link…"}</button>
       {shareNote && <p className="share-note" role="status">{shareNote}</p>}
+      {shareLink && <a className="share-link" href={shareLink}>Open saved coins + trophies link</a>}
     </div>}
   </section>;
 }

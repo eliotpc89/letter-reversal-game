@@ -13,12 +13,13 @@ import { basename } from "node:path";
 import tailwindPlugin from "bun-plugin-tailwind";
 
 const ENTRY = "./index.html";
+const SOUND_CHECK_ENTRY = "./sound-check.html";
 const OUTDIR = "./dist";
 
 await rm(OUTDIR, { force: true, recursive: true });
 
 const result = await Bun.build({
-  entrypoints: [ENTRY],
+  entrypoints: [ENTRY, SOUND_CHECK_ENTRY],
   outdir: OUTDIR,
   minify: true,
   define: {

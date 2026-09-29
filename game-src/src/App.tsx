@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { SafeAreaTopScrim } from "./safe-area";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, encodeSave, type ApiResponse, type Letter, type PracticeGameId, type TrophyId } from "./api";
+import { api, type ApiResponse, type Letter, type PracticeGameId, type TrophyId, type Vowel } from "./api";
 import { CoinIcon } from "./icons";
 import { ensureAudioContext } from "./kit/audio";
 import { playJackpot, playWhomp } from "./kit/sfx";
@@ -14,7 +14,15 @@ import type { GameContext } from "./games/types";
 
 type GameState = ApiResponse<typeof api, "getGameState">;
 
-function GameMenu({ state, onPlay, onOpenShop }: { state: GameState | undefined; onPlay: (id: string) => void; onOpenShop: () => void }) {
+function MissedWordsReview({ state, onFocus, onReset, resetting }: { state: GameState | undefined; onFocus: () => void; onReset: () => void; resetting: boolean }) {
+  const missed = [...(state?.wordStats ?? [])].filter((row) => row.misses > 0).sort((a, b) => b.misses - a.misses || a.word.localeCompare(b.word));
+  return <section className="missed-review" aria-labelledby="missed-words-title">
+    <div className="missed-review-topline"><div><h2 id="missed-words-title">Missed words</h2><p>{missed.length ? "Words that need another pass." : "Missed words will show up here as Miles plays."}</p></div><div className="missed-review-actions">{missed.length > 0 && <button type="button" onClick={onFocus}>Focus these</button>}<button type="button" onClick={onReset} disabled={missed.length === 0 || resetting}>{resetting ? "Resetting…" : "Reset missed words"}</button></div></div>
+    {missed.length > 0 && <div className="missed-word-list">{missed.slice(0, 12).map((row) => <span key={row.word} className="missed-word-chip"><b>{row.word}</b><small>{row.vowel === "o" ? "ŏ" : "ŭ"} · {row.misses} miss{row.misses === 1 ? "" : "es"}</small></span>)}</div>}
+  </section>;
+}
+
+function GameMenu({ state, onPlay, onOpenShop, onResetMissed, resettingMissed }: { state: GameState | undefined; onPlay: (id: string, focusMissed?: boolean) => void; onOpenShop: () => void; onResetMissed: () => void; resettingMissed: boolean }) {
   const { bank } = useContent();
   const hero = GAMES.find((game) => game.tile === "hero");
   const grid = GAMES.filter((game) => game.tile === "grid");
@@ -68,6 +76,8 @@ function GameMenu({ state, onPlay, onOpenShop }: { state: GameState | undefined;
         <div className="empty-game-slots" aria-hidden="true"><span>+</span></div>
       </section>
 
+      <MissedWordsReview state={state} onFocus={() => onPlay("sound-blaster", true)} onReset={onResetMissed} resetting={resettingMissed} />
+
       {state ? <TrophyCase owned={state.unlockedTrophies} onOpen={onOpenShop} /> : <div className="stats-loading">Loading your coins…</div>}
     </main>
   </>;
@@ -83,6 +93,12 @@ export function App() {
   const [importCode, setImportCode] = useState<string | null>(null);
   const [importError, setImportError] = useState(false);
   const [importDone, setImportDone] = useState(false);
+  const [focusMissed, setFocusMissed] = useState(false);
+
+  const startGame = useCallback((id: string, focus = false) => {
+    setFocusMissed(focus);
+    setView(id);
+  }, []);
 
   const game = useQuery({ queryKey: ["game-state"], queryFn: () => api.getGameState({}) });
   const state = game.data;
@@ -101,11 +117,16 @@ export function App() {
   });
 
   const practice = useMutation({
-    mutationFn: (entry: { gameId: PracticeGameId; correct: boolean }) => api.recordPracticeAttempt(entry),
+    mutationFn: (entry: { gameId: PracticeGameId; correct: boolean; word?: { word: string; vowel: Vowel } }) => api.recordPracticeAttempt(entry),
     onSuccess: (result, entry) => {
       queryClient.setQueryData(["game-state"], result.state);
       celebrate(entry.correct);
     },
+  });
+
+  const resetMissedWords = useMutation({
+    mutationFn: () => api.resetMissedWords({}),
+    onSuccess: (next) => queryClient.setQueryData(["game-state"], next),
   });
 
   const reset = useMutation({
@@ -132,9 +153,9 @@ export function App() {
 
   const openShop = useCallback(() => { setShopMessage(null); setShopOpen(true); }, []);
 
-  const savePractice = useCallback(async (gameId: string, correct: boolean) => {
+  const savePractice = useCallback(async (gameId: string, correct: boolean, word?: { word: string; vowel: Vowel }) => {
     ensureAudioContext();
-    await practice.mutateAsync({ gameId, correct });
+    await practice.mutateAsync({ gameId, correct, word });
   }, [practice]);
 
   const recordLetter = useCallback(async (target: Letter, correct: boolean) => {
@@ -176,23 +197,30 @@ export function App() {
     coins: state.coins,
     onBack: () => setView("menu"),
     onOpenShop: openShop,
-    onRecord: (correct) => savePractice(gameDef.id, correct),
+    onRecord: (correct, word) => savePractice(gameDef.id, correct, word),
     recordLetter,
     onReset: () => reset.mutate(),
     resetting: reset.isPending,
+    focusMissed,
   } : null;
 
   return <div className="game-shell">
     <SafeAreaTopScrim backgroundColor="var(--bg)" />
     {importCode && <div className="import-banner" role="alertdialog" aria-label="Import progress">
-      <div><strong>Progress link opened.</strong><span>Import coins, trophies, and scores from your other device? This replaces this device's progress.</span></div>
+      <div><strong>Coins + trophies link opened.</strong><span>Import these coins and trophies? Other history on this device will stay.</span></div>
       <div className="import-actions"><button type="button" onClick={() => void doImport()}>Import</button><button type="button" onClick={() => setImportCode(null)}>Not now</button></div>
     </div>}
-    {importDone && <p className="import-note" role="status">Progress imported! <button type="button" onClick={() => setImportDone(false)}>OK</button></p>}
+    {importDone && <p className="import-note" role="status">Coins and trophies imported! <button type="button" onClick={() => setImportDone(false)}>OK</button></p>}
     {importError && <p className="import-note" role="alert">That progress link didn't work. <button type="button" onClick={() => setImportError(false)}>OK</button></p>}
     {confettiKey > 0 && <div className="confetti-layer" key={confettiKey} aria-hidden="true">{confetti.map((piece) => <i key={piece.id} style={{ left: piece.left, animationDelay: piece.delay, translate: piece.drift, background: piece.color }} />)}</div>}
 
-    {view === "menu" && <GameMenu state={state} onPlay={setView} onOpenShop={openShop} />}
+    {view === "menu" && <GameMenu
+      state={state}
+      onPlay={startGame}
+      onOpenShop={openShop}
+      onResetMissed={() => resetMissedWords.mutate()}
+      resettingMissed={resetMissedWords.isPending}
+    />}
 
     {gameDef && (ctx
       ? gameDef.render(ctx)

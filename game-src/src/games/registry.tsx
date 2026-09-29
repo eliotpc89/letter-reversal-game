@@ -12,6 +12,9 @@ import { PairPickerGame } from "./pair-picker";
 import { WriteItGame } from "./write-it";
 import { MathBlastersGame } from "./math-blasters";
 import { OddOneOutGame } from "./odd-one-out";
+import { SoundBlasterGame } from "./sound-blaster";
+import { BonusLetterBlasterGame } from "./bonus-blaster";
+import { TrickWordSpellingGame } from "./trick-words";
 
 export type TileKind = "hero" | "grid" | "wide";
 
@@ -122,6 +125,45 @@ export const GAMES: GameDef[] = [
     playLabel: "Play Odd One Out",
     statLine: practiceStatLine("odd-one-out"),
     render: (ctx) => <OddOneOutGame {...ctx} />,
+  },
+  {
+    id: "sound-blaster",
+    tile: "wide",
+    name: "Sound Blaster",
+    tagline: "Blast the vowel!",
+    rule: "Hear the word twice, then blast short o or short u.",
+    art: "ŏ  ·  ŭ",
+    tileClass: "sound-blaster-tile",
+    artClass: "math-tile-art sound-blaster-art",
+    playLabel: "Play Sound Blaster",
+    statLine: practiceStatLine("sound-blaster"),
+    render: (ctx) => <SoundBlasterGame {...ctx} />,
+  },
+  {
+    id: "bonus-blaster",
+    tile: "wide",
+    name: "Bonus Letter Blaster",
+    tagline: "Blast the bonus letter!",
+    rule: "Choose the spelling with the extra f, l, or s.",
+    art: "f · l · s",
+    tileClass: "bonus-game-tile",
+    artClass: "math-tile-art bonus-tile-art",
+    playLabel: "Play Bonus Letter Blaster",
+    statLine: practiceStatLine("bonus-blaster"),
+    render: (ctx) => <BonusLetterBlasterGame {...ctx} />,
+  },
+  {
+    id: "trick-words",
+    tile: "wide",
+    name: "Trick Word Typist",
+    tagline: "Hear it, then write it!",
+    rule: "Spell the Unit 4 trick words from memory.",
+    art: "you · said",
+    tileClass: "trick-game-tile",
+    artClass: "math-tile-art trick-tile-art",
+    playLabel: "Play Trick Word Typist",
+    statLine: practiceStatLine("trick-words"),
+    render: (ctx) => <TrickWordSpellingGame {...ctx} />,
   },
 ];
 
