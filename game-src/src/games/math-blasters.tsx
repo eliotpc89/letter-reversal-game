@@ -38,8 +38,9 @@ function makeProblem(round: number): MathProblem {
 
 /**
  * Math Blasters, re-skinned onto the shared FallingTapper engine.
- * Behavior is identical to the original: same speeds, same scoring
- * (10 + max(0, 5 − round)), same coin flow, same feedback copy.
+ * Same scoring (10 + max(0, 5 − round)), same coin flow, same feedback copy.
+ * Fall speeds follow the tuned values from the parallel work
+ * (0.0075 + round * 0.0006), and the engine adds pause/resume on top.
  */
 export function MathBlastersGame({ coins, onBack, onOpenShop, onRecord }: GameContext) {
   const problemRef = useRef<MathProblem | null>(null);
@@ -72,7 +73,7 @@ export function MathBlastersGame({ coins, onBack, onOpenShop, onRecord }: GameCo
     wrongFeedback={wrongFeedback}
     breachFeedback="A target got through — protect your ship!"
     makeWave={makeWave}
-    speedForRound={(round) => 0.009 + Math.min(round, 12) * 0.0008}
+    speedForRound={(round) => 0.0075 + Math.min(round, 12) * 0.0006}
     scoreForRound={(round) => 10 + Math.max(0, 5 - round)}
     targetAriaLabel={(target) => `Answer ${target.label}`}
     onCorrect={() => onRecord(true)}

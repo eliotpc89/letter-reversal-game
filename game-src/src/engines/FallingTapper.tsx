@@ -111,6 +111,8 @@ export function FallingTapper(props: FallingTapperProps) {
   const lockedRef = useRef(false);
   const livesRef = useRef(startLives);
   const waveRef = useRef<Wave | null>(null);
+  const pausedRef = useRef(false);
+  const pendingNextRoundRef = useRef(false);
   const [round, setRound] = useState(1);
   const [wave, setWave] = useState<Wave>(() => {
     const first = makeWave(1);
@@ -125,6 +127,7 @@ export function FallingTapper(props: FallingTapperProps) {
   const [gameOver, setGameOver] = useState(false);
   const [busy, setBusy] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
+  const [paused, setPaused] = useState(false);
 
   const nextRound = useCallback(() => {
     setRound((current) => {
@@ -140,6 +143,26 @@ export function FallingTapper(props: FallingTapperProps) {
       return next;
     });
   }, [makeWave, nextWaveFeedback]);
+
+  const scheduleNextRound = useCallback((delay: number) => {
+    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(() => {
+      timerRef.current = null;
+      if (pausedRef.current) {
+        pendingNextRoundRef.current = true;
+        return;
+      }
+      nextRound();
+    }, delay);
+  }, [nextRound]);
+
+  useEffect(() => {
+    pausedRef.current = paused;
+    if (!paused && pendingNextRoundRef.current) {
+      pendingNextRoundRef.current = false;
+      nextRound();
+    }
+  }, [nextRound, paused]);
 
   const damage = useCallback(async (message: string) => {
     if (lockedRef.current || gameOver) return;
@@ -160,10 +183,10 @@ export function FallingTapper(props: FallingTapperProps) {
         setGameOver(true);
         setBusy(false);
       } else {
-        timerRef.current = window.setTimeout(nextRound, 850);
+        scheduleNextRound(850);
       }
     }
-  }, [gameOver, nextRound, onWrong, soundOn]);
+  }, [gameOver, nextRound, onWrong, scheduleNextRound, soundOn]);
 
   useEffect(() => {
     let frame = 0;
@@ -172,7 +195,7 @@ export function FallingTapper(props: FallingTapperProps) {
     const tick = (now: number) => {
       const delta = Math.min(40, now - previous);
       previous = now;
-      if (!lockedRef.current && !gameOver) {
+      if (!paused && !lockedRef.current && !gameOver) {
         setTargets((current) => {
           const next = current.map((target) => target.status === "falling"
             ? { ...target, y: target.y + delta * speed }
@@ -196,14 +219,14 @@ export function FallingTapper(props: FallingTapperProps) {
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [breachFeedback, damage, gameOver, onlyGoodBreachesHurt, round, speedForRound]);
+  }, [breachFeedback, damage, gameOver, onlyGoodBreachesHurt, paused, round, speedForRound]);
 
   useEffect(() => () => {
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
   }, []);
 
   const fire = async (target: PlacedTarget) => {
-    if (busy || lockedRef.current || gameOver) return;
+    if (busy || paused || lockedRef.current || gameOver) return;
     ensureAudioContext();
     lockedRef.current = true;
     setBusy(true);
@@ -224,7 +247,7 @@ export function FallingTapper(props: FallingTapperProps) {
       } catch {
         // The round didn't save; keep playing rather than soft-locking.
       } finally {
-        timerRef.current = window.setTimeout(nextRound, 650);
+        scheduleNextRound(650);
       }
     } else {
       setTargets((current) => current.map((item) => item.key === target.key ? { ...item, status: "wrong" } : item));
@@ -233,11 +256,18 @@ export function FallingTapper(props: FallingTapperProps) {
     }
   };
 
+  const togglePause = () => setPaused((value) => {
+    pausedRef.current = !value;
+    return !value;
+  });
+
   const repair = () => {
     const first = makeWave(1);
     waveRef.current = first;
     livesRef.current = startLives;
     lockedRef.current = false;
+    pausedRef.current = false;
+    pendingNextRoundRef.current = false;
     setRound(1);
     setWave(first);
     setTargets(placeWave(first));
@@ -247,12 +277,15 @@ export function FallingTapper(props: FallingTapperProps) {
     setLaser(null);
     setGameOver(false);
     setBusy(false);
+    setPaused(false);
   };
 
   const hud = <>
     <div className="math-hud-block math-score-block"><span>Score</span><strong>{score}</strong><small>R{round}</small></div>
     <div className="math-hud-block shield-meter"><span>Shields</span><strong>{Array.from({ length: startLives }, (_, pip) => <i key={pip} className={pip < lives ? "active" : ""}>◆</i>)}</strong></div>
   </>;
+
+  const pauseButton = <button className="math-pause" type="button" onClick={togglePause} disabled={gameOver} aria-label={paused ? "Resume game" : "Pause game"}><span aria-hidden="true">{paused ? "▶" : "Ⅱ"}</span><small>{paused ? "Resume" : "Pause"}</small></button>;
 
   return <GameShell
     variant={shell.variant}
@@ -262,6 +295,7 @@ export function FallingTapper(props: FallingTapperProps) {
     onBack={shell.onBack}
     onOpenShop={shell.onOpenShop}
     hud={hud}
+    action={pauseButton}
     fullscreenClass={shell.fullscreenClass}
   >
     <main className="math-main">
@@ -279,6 +313,7 @@ export function FallingTapper(props: FallingTapperProps) {
         >{target.label}</button>)}
         {laser && <span key={laser.id} className="math-laser" style={{ "--shot-angle": `${laser.angle}rad`, "--shot-distance": `${laser.distance}px` } as CSSProperties} aria-hidden="true" />}
         <div className="ship-deck"><Spaceship /></div>
+        {paused && !gameOver && <div className="math-paused" role="status"><strong>PAUSED</strong><span>Tap resume when you’re ready.</span></div>}
         {gameOver && <div className="math-game-over" role="status"><strong>{gameOverTitle}</strong><span>Score: {score}</span><button type="button" onClick={repair}>{repairLabel}</button></div>}
       </section>
       <div className="math-controls"><p>{controlsNote}</p><button type="button" onClick={() => setSoundOn((value) => !value)}>{soundOn ? "🔊 Sounds on" : "🔇 Sounds off"}</button></div>
