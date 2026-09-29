@@ -3,7 +3,7 @@ import { SafeAreaTopScrim } from "./safe-area";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { api, encodeSave, type ApiResponse } from "./api";
 import { classifyDrawing, isConfidentMatch, LETTERS, type Letter } from "./draw-classifier";
-import { CoinIcon, GamesIcon, SpeakerIcon, TrophyIcon, type TrophyId } from "./icons";
+import { CoinIcon, SpeakerIcon, TrophyIcon, type TrophyId } from "./icons";
 import { useAudioClip } from "./kit/useAudioClip";
 import { playJackpot, playWhomp } from "./kit/sfx";
 import { GameShell } from "./shell/GameShell";
@@ -16,7 +16,7 @@ import uSound from "./assets/letters/u.mp3";
 import cSound from "./assets/letters/c.mp3";
 import kSound from "./assets/letters/k.mp3";
 import { VOWEL_AUDIO } from "./assets/vowels";
-import { MathBlasters } from "./MathBlasters";
+import { MathBlastersGame } from "./games/math-blasters";
 
 type GameState = ApiResponse<typeof api, "getGameState">;
 type Verdict = "correct" | "wrong" | "retry" | null;
@@ -651,7 +651,7 @@ export function App() {
     {view === "sound-sort" && state && <SoundSortGame state={state} onBack={() => setView("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} onRecord={savePractice} />}
     {view === "pair-picker" && state && <PairPickerGame state={state} onBack={() => setView("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} onRecord={savePractice} />}
     {view === "write-it" && state && <WriteItGame state={state} onBack={() => setView("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} onRecord={savePractice} />}
-    {view === "math-blasters" && state && <MathBlasters coins={state.coins} onBack={() => setView("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} onRecord={(correct) => savePractice("math-blasters", correct)} />}
+    {view === "math-blasters" && state && <MathBlastersGame state={state} coins={state.coins} onBack={() => setView("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} onRecord={(correct) => savePractice("math-blasters", correct)} />}
     {view !== "menu" && view !== "bed" && !state && <div className="stats-loading page-loading">{game.isError ? "Progress couldn’t load yet." : "Loading your coins…"}</div>}
 
     {view === "bed" && <GameShell variant="bed" eyebrow="" title="" coins={state?.coins ?? 10} onBack={() => setView("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} action={<>
