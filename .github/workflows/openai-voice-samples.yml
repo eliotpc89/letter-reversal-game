@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/openai-voice-samples.yml'
       - 'scripts/generate_openai_audio.py'
+      - 'game-src/public/content/**'
 
 permissions:
   contents: read
@@ -38,6 +39,7 @@ jobs:
           path: |
             audio-review/
             game-src/src/assets/
+            game-src/public/content/
             docs/
           if-no-files-found: warn
           retention-days: 14

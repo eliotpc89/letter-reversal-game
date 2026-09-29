@@ -1,6 +1,4 @@
-import { VOWEL_AUDIO } from "../assets/vowels";
-
-const VOWEL_CLIPS = VOWEL_AUDIO as Record<string, string>;
+// Word audio is served as static content, not bundled: content/audio/<word>.mp3
 import type { GameState } from "../api";
 import type { PracticeGameId } from "../api";
 import type { PhonicsCorePack } from "./packs";
@@ -23,7 +21,7 @@ export type WordBank = {
 };
 
 function toPracticeWord(word: string, vowel: Vowel): PracticeWord {
-  return { word, vowel, vowelIndex: word.indexOf(vowel), audio: VOWEL_CLIPS[word] };
+  return { word, vowel, vowelIndex: word.indexOf(vowel), audio: `content/audio/${word}.mp3` };
 }
 
 /**
@@ -46,7 +44,7 @@ export function buildWordBank(pack: PhonicsCorePack): WordBank {
     WORD_AUDIO: new Map(practice.map((item) => [item.word, item.audio])),
     PAIRS: pack.pairs,
     DEFAULT_PAIR: pack.pairs[0] ?? (["cot", "cut"] as const),
-    DEFAULT_WORD: first ?? { word: "cot", vowel: "o", vowelIndex: 1, audio: VOWEL_CLIPS["cot"] },
+    DEFAULT_WORD: first ?? { word: "cot", vowel: "o", vowelIndex: 1, audio: "content/audio/cot.mp3" },
   };
 }
 

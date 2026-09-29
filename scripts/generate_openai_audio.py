@@ -20,9 +20,15 @@ import urllib.request
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-ASSET_ROOT = ROOT / "game-src/src/assets"
+GAME_SRC = ROOT / "game-src"
+# Vowel word clips are runtime content (fetched as static files, never
+# bundled); letter-name clips are compile-time imports in the b__d game.
+AUDIO_ROOT = GAME_SRC / "public/content/audio"
+LETTER_ROOT = GAME_SRC / "src/assets/letters"
+PACK_PATH = GAME_SRC / "public/content/manifest.json"
+PHONICS_PACK = GAME_SRC / "public/content/packs/phonics-core.json"
 REVIEW_ROOT = ROOT / "audio-review"
-PREVIEW_ASSETS = REVIEW_ROOT / "assets/game-src/src/assets"
+PREVIEW_ASSETS = REVIEW_ROOT / "assets/game-src"
 MODEL = "gpt-4o-mini-tts"
 VOICE = "marin"
 LETTER_NAMES = {
@@ -37,16 +43,20 @@ LETTER_NAMES = {
 }
 
 
+def word_list() -> list[str]:
+    """Every word the phonics-core pack needs a clip for."""
+    pack = json.loads(PHONICS_PACK.read_text(encoding="utf-8"))
+    return sorted(set(pack["shortO"]) | set(pack["shortU"]))
+
+
 def expected_speech(path: pathlib.Path) -> str:
-    stem = path.stem
-    if path.parent.name == "letters":
+    if path.parent == LETTER_ROOT:
+        stem = path.stem
         try:
             return LETTER_NAMES[stem]
         except KeyError as exc:
             raise ValueError(f"No letter-name mapping for {path}") from exc
-    if stem in ("short-o", "short-u"):
-        return "short O" if stem == "short-o" else "short U"
-    return stem.removesuffix("_new").replace("-", " ")
+    return path.stem.replace("-", " ")
 
 
 def call_tts(key: str, speech: str, destination: pathlib.Path) -> None:
@@ -161,7 +171,7 @@ def write_report(rows: list[dict[str, object]], errors: list[str]) -> None:
     items = []
     for row in rows:
         rel = pathlib.Path(str(row["file"]))
-        source = "assets/game-src/src/assets/" + rel.relative_to(ASSET_ROOT).as_posix()
+        source = "assets/game-src/" + rel.relative_to(GAME_SRC).as_posix()
         items.append(
             "<section><b>" + html.escape(str(row["file"])) + "</b> — " + html.escape(str(row["spoken_text"]))
             + "<br><small>" + html.escape(str(row.get("status", ""))) + " "
@@ -183,7 +193,9 @@ def main() -> int:
     if not key:
         print("Missing repository Actions secret: openaivoice", file=sys.stderr)
         return 2
-    assets = sorted(ASSET_ROOT.rglob("*.mp3"))
+    assets = sorted(LETTER_ROOT.glob("*.mp3"))
+    for word in word_list():
+        assets.append(AUDIO_ROOT / f"{word}.mp3")
     if not assets:
         print("No source MP3 files found", file=sys.stderr)
         return 2
@@ -194,7 +206,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="openai-audio-") as temporary:
         temp_root = pathlib.Path(temporary)
         for index, source in enumerate(assets, start=1):
-            relative = source.relative_to(ASSET_ROOT)
+            relative = source.relative_to(GAME_SRC)
             speech = expected_speech(source)
             raw_mp3 = temp_root / (relative.as_posix().replace("/", "_") + ".raw.mp3")
             final_mp3 = temp_root / (relative.as_posix().replace("/", "_") + ".mp3")

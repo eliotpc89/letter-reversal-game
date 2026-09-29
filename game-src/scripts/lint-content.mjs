@@ -31,12 +31,12 @@ for (const entry of manifest.packs ?? []) {
 const phonics = packs["phonics-core"];
 if (phonics) {
   const words = new Set([...phonics.shortO, ...phonics.shortU]);
-  const clipFiles = await readdir("./src/assets/vowels");
+  const clipFiles = await readdir("./public/content/audio");
   const clips = new Set(
     clipFiles.filter((file) => file.endsWith(".mp3")).map((file) => file.slice(0, -4)),
   );
   for (const word of words) {
-    if (!clips.has(word)) fail(`word "${word}" has no vowel clip in src/assets/vowels`);
+    if (!clips.has(word)) fail(`word "${word}" has no vowel clip in public/content/audio`);
   }
   for (const clip of clips) {
     if (!words.has(clip)) fail(`vowel clip "${clip}.mp3" is not in any word pool`);
