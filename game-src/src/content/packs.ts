@@ -20,8 +20,24 @@ export type OddOneOutPack = {
   rounds: OddRound[];
 };
 
+/** Trick words are tested in listed order. */
+export type TrickWordsPack = {
+  id: "trick-words";
+  version: number;
+  words: string[];
+};
+
+/** Bonus-letter pairs: [correct spelling, decoy missing the bonus letter]. */
+export type BonusWordsPack = {
+  id: "bonus-words";
+  version: number;
+  pairs: [string, string][];
+};
+
 export type PackMap = {
   "phonics-core": PhonicsCorePack;
   "odd-one-out": OddOneOutPack;
+  "trick-words": TrickWordsPack;
+  "bonus-words": BonusWordsPack;
 };
 export type PackId = keyof PackMap;

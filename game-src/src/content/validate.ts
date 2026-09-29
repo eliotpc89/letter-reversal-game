@@ -75,5 +75,36 @@ export function validateOddOneOut(pack: unknown): string[] {
 export function validatePack(id: PackId, pack: unknown): string[] {
   if (id === "phonics-core") return validatePhonicsCore(pack);
   if (id === "odd-one-out") return validateOddOneOut(pack);
+  if (id === "trick-words") return validateTrickWords(pack);
+  if (id === "bonus-words") return validateBonusWords(pack);
   return [`unknown pack id "${id}"`];
+}
+
+export function validateTrickWords(pack: unknown): string[] {
+  if (!isRecord(pack)) return ["trick-words pack is not an object"];
+  const errors: string[] = [];
+  const words = pack.words;
+  if (!Array.isArray(words) || words.length === 0) return ["trick-words.words must be a non-empty array"];
+  words.forEach((word, index) => {
+    if (typeof word !== "string" || !WORD.test(word)) errors.push(`trick-words.words[${index}] must be a lowercase-alpha word`);
+  });
+  const dupes = (words as string[]).filter((word, i) => (words as string[]).indexOf(word) !== i);
+  if (dupes.length) errors.push(`trick-words.words has duplicates: ${[...new Set(dupes)].join(", ")}`);
+  return errors;
+}
+
+export function validateBonusWords(pack: unknown): string[] {
+  if (!isRecord(pack)) return ["bonus-words pack is not an object"];
+  const errors: string[] = [];
+  if (!Array.isArray(pack.pairs) || pack.pairs.length === 0) return ["bonus-words.pairs must be a non-empty array"];
+  const seen = new Set<string>();
+  (pack.pairs as unknown[]).forEach((pair, index) => {
+    if (!Array.isArray(pair) || pair.length !== 2 || typeof pair[0] !== "string" || typeof pair[1] !== "string") {
+      errors.push(`bonus-words.pairs[${index}] must be [word, decoy]`); return;
+    }
+    if (!WORD.test(pair[0]) || !WORD.test(pair[1])) errors.push(`bonus-words.pairs[${index}] must be lowercase-alpha words`);
+    if (seen.has(pair[0])) errors.push(`bonus-words.pairs[${index}] duplicates word "${pair[0]}"`);
+    seen.add(pair[0]);
+  });
+  return errors;
 }

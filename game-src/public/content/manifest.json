@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "packs": [
     {
       "id": "phonics-core",
@@ -9,6 +9,16 @@
     {
       "id": "odd-one-out",
       "file": "odd-one-out.json",
+      "version": 1
+    },
+    {
+      "id": "trick-words",
+      "file": "trick-words.json",
+      "version": 1
+    },
+    {
+      "id": "bonus-words",
+      "file": "bonus-words.json",
       "version": 1
     }
   ]

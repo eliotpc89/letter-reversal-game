@@ -1,10 +1,12 @@
 // Word audio is served as static content, not bundled: content/audio/<word>.mp3
 import type { GameState } from "../api";
 import type { PracticeGameId } from "../api";
-import type { PhonicsCorePack } from "./packs";
+import type { BonusWordsPack, PhonicsCorePack, TrickWordsPack } from "./packs";
 
 export type Vowel = "o" | "u";
 export type PracticeWord = { word: string; vowel: Vowel; vowelIndex: number; audio: string };
+export type TrickWord = { word: string; audio: string };
+export type BonusWord = { word: string; fake: string; audio: string };
 
 /** Everything the games derive from the phonics-core pack. */
 export type WordBank = {
@@ -50,6 +52,16 @@ export function buildWordBank(pack: PhonicsCorePack): WordBank {
 
 export function shuffled<T>(values: readonly T[]): T[] {
   return [...values].sort(() => Math.random() - 0.5);
+}
+
+/** Trick words keep the pack's test order. */
+export function buildTrickWords(pack: TrickWordsPack): TrickWord[] {
+  return pack.words.map((word) => ({ word, audio: `content/audio/${word}.mp3` }));
+}
+
+/** Bonus-letter pairs: the correct spelling and its decoy. */
+export function buildBonusWords(pack: BonusWordsPack): BonusWord[] {
+  return pack.pairs.map(([word, fake]) => ({ word, fake, audio: `content/audio/${word}.mp3` }));
 }
 
 export function practiceStat(state: GameState | undefined, gameId: PracticeGameId) {

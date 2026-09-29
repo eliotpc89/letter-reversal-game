@@ -26,20 +26,26 @@ for (const entry of manifest.packs ?? []) {
   packs[entry.id] = pack;
 }
 
-// Word↔audio coverage: every pool word needs a vowel clip, and every vowel
-// clip should be reachable from some pool (so generated audio never orphans).
+// Word↔audio coverage: every pool word needs a clip, and every clip
+// should be reachable from some pool (so generated audio never orphans).
+const wordSets = [];
 const phonics = packs["phonics-core"];
-if (phonics) {
-  const words = new Set([...phonics.shortO, ...phonics.shortU]);
+if (phonics) wordSets.push([...phonics.shortO, ...phonics.shortU]);
+const trick = packs["trick-words"];
+if (trick) wordSets.push(trick.words);
+const bonus = packs["bonus-words"];
+if (bonus) wordSets.push(bonus.pairs.map(([word]) => word));
+const words = new Set(wordSets.flat());
+if (words.size > 0) {
   const clipFiles = await readdir("./public/content/audio");
   const clips = new Set(
     clipFiles.filter((file) => file.endsWith(".mp3")).map((file) => file.slice(0, -4)),
   );
   for (const word of words) {
-    if (!clips.has(word)) fail(`word "${word}" has no vowel clip in public/content/audio`);
+    if (!clips.has(word)) fail(`word "${word}" has no clip in public/content/audio`);
   }
   for (const clip of clips) {
-    if (!words.has(clip)) fail(`vowel clip "${clip}.mp3" is not in any word pool`);
+    if (!words.has(clip)) fail(`clip "${clip}.mp3" is not in any word pool`);
   }
   console.log(`content lint: checked ${words.size} words against ${clips.size} clips`);
 }
