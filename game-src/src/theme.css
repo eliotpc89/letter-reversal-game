@@ -605,3 +605,45 @@ button { font: inherit; }
 html.math-fullscreen, body.math-fullscreen { height: 100%; overflow: hidden; overscroll-behavior: none; }
 body.math-fullscreen { touch-action: none; }
 .math-fullscreen .hatch-space-root { height: 100dvh; overflow: hidden; }
+
+
+/* Bonus-letter and trick-word games */
+.bonus-stage { overflow: hidden; }
+.bonus-word-target { position: absolute; z-index: 5; width: min(40vw, 150px); min-height: 78px; padding: 8px 5px; transform: translateX(-50%); border: 4px solid #14213d; border-radius: 17px 25px 14px 20px; background: linear-gradient(145deg, #fff8bf, #ffbd5a); color: #14213d; box-shadow: 0 0 0 3px rgba(255,201,40,.25), 0 0 20px rgba(255,189,90,.55), 0 5px 0 #14213d; cursor: crosshair; transition: filter .12s ease, opacity .15s ease; }
+.bonus-word-target b { display: block; font-family: "Avenir Next Rounded", "Trebuchet MS", sans-serif; font-size: clamp(26px, 7vw, 39px); line-height: 1; }
+.bonus-word-target small { display: block; margin-top: 5px; color: #5c3a00; font-size: 9px; font-weight: 950; letter-spacing: .12em; }
+.bonus-word-target:active { filter: brightness(1.22); transform: translate(-50%, 3px); box-shadow: 0 2px 0 #14213d; }
+.bonus-word-target.hit { animation: bonus-hit .55s ease both; pointer-events: none; }
+.bonus-word-target.wrong { animation: answer-wrong .55s ease both; filter: saturate(.55) hue-rotate(285deg); }
+.bonus-word-target:disabled { cursor: default; }
+.trick-main { padding-top: 11px; }
+.trick-stage { padding-bottom: 22px; }
+.trick-listen { margin-top: 15px; margin-bottom: 14px; }
+.typing-word { min-height: 78px; display: flex; justify-content: center; align-items: end; gap: 7px; }
+.typing-word span { width: min(15vw, 57px); height: 68px; border-bottom: 5px solid var(--text); color: var(--text); font-family: "Avenir Next Rounded", "Trebuchet MS", sans-serif; font-size: clamp(34px, 11vw, 48px); font-weight: 950; line-height: 1.15; text-transform: uppercase; }
+.typing-word span.filled { border-bottom-color: var(--blue); }
+.typing-feedback { min-height: 32px; margin: 9px auto 10px; color: var(--dim); font-size: 13px; font-weight: 800; }
+.typing-keyboard { width: min(100%, 510px); margin: 0 auto; padding: 10px; border: 3px solid var(--border); border-radius: 16px; background: color-mix(in srgb, var(--bg) 88%, var(--surface)); }
+.typing-vowel-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; padding-bottom: 9px; border-bottom: 2px dashed var(--border); }
+.typing-consonant-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-top: 9px; }
+.typing-consonant-columns > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.typing-keyboard button { min-height: 53px; border: 3px solid var(--text); border-radius: 10px 15px 9px 13px; background: var(--yellow); color: #14213d; box-shadow: 0 4px 0 var(--text); font-family: "Avenir Next Rounded", "Trebuchet MS", sans-serif; font-size: 25px; font-weight: 950; cursor: pointer; text-transform: lowercase; }
+.typing-vowel-row button { background: #bfe9ff; }
+.typing-keyboard button:active:not(:disabled) { translate: 0 3px; box-shadow: 0 1px 0 var(--text); }
+.typing-keyboard button:disabled { opacity: .35; box-shadow: none; cursor: default; }
+.typing-actions { display: flex; justify-content: center; gap: 8px; padding-top: 10px; }
+.typing-actions button { min-height: 43px; padding: 0 14px; background: var(--surface); color: var(--dim); font-size: 14px; }
+.trick-result { margin-top: 17px; padding: 13px 14px; border: 3px solid var(--text); border-radius: 13px 19px 11px 16px; background: var(--surface); box-shadow: 0 5px 0 var(--text); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.trick-result strong, .trick-result span { display: block; }
+.trick-result strong { font-size: 19px; }
+.trick-result span { margin-top: 4px; color: var(--dim); font-size: 12px; font-weight: 750; }
+.trick-result button { min-height: 46px; padding: 0 13px; border: 2px solid var(--text); border-radius: 10px; background: var(--green); color: #fff; font-weight: 950; white-space: nowrap; }
+@keyframes bonus-hit { 0% { opacity: 1; scale: 1; } 100% { opacity: 0; scale: 1.14; rotate: 4deg; } }
+@media (max-width: 420px) {
+  .bonus-word-target { width: min(42vw, 145px); min-height: 70px; }
+  .bonus-word-target b { font-size: clamp(23px, 7vw, 34px); }
+  .math-header.bonus-header .math-title strong { font-size: 13px; }
+  .typing-keyboard { padding: 7px; }
+  .typing-keyboard button { min-height: 49px; font-size: 23px; }
+  .typing-word span { width: min(15vw, 50px); }
+}

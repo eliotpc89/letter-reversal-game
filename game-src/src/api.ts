@@ -27,11 +27,11 @@ export type TrophyId =
   | "starfox-laser"
   | "cosmic-compass"
   | "moon-medal";
-export type PracticeGameId = "sound-sort" | "pair-picker" | "write-it" | "math-blasters" | "sound-blaster";
+export type PracticeGameId = "sound-sort" | "pair-picker" | "write-it" | "math-blasters" | "sound-blaster" | "bonus-blaster" | "trick-words";
 export type Vowel = "o" | "u";
 
 const LETTERS: Letter[] = ["b", "d", "p", "q", "n", "u", "c", "k"];
-const PRACTICE_GAMES: PracticeGameId[] = ["sound-sort", "pair-picker", "write-it", "math-blasters", "sound-blaster"];
+const PRACTICE_GAMES: PracticeGameId[] = ["sound-sort", "pair-picker", "write-it", "math-blasters", "sound-blaster", "bonus-blaster", "trick-words"];
 const TROPHY_PRICES: Record<TrophyId, number> = {
   star: 1000,
   "one-up": 1100,

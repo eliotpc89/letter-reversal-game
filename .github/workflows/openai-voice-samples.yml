@@ -6,8 +6,10 @@ on:
     paths:
       - '.github/workflows/openai-voice-samples.yml'
       - 'scripts/generate_openai_audio.py'
-      - 'game-src/src/App.tsx'
+      - 'game-src/src/audio-words.ts'
       - 'game-src/src/assets/vowels/index.ts'
+      - 'game-src/src/assets/bonus/index.ts'
+      - 'game-src/src/assets/trick/index.ts'
 
 permissions:
   contents: read
@@ -23,9 +25,10 @@ jobs:
           bun-version: latest
       - name: Install ffmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - name: Generate and validate every source MP3
+      - name: Generate and statically check only new source MP3s
         env:
           OPENAI_API_KEY: ${{ secrets.openaivoice }}
+          AUDIO_SCOPE: new
         run: python3 scripts/generate_openai_audio.py
       - name: Build the site and refresh docs/
         working-directory: game-src

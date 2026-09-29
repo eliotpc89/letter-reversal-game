@@ -12,13 +12,18 @@ import uSound from "./assets/letters/u.mp3";
 import cSound from "./assets/letters/c.mp3";
 import kSound from "./assets/letters/k.mp3";
 import { VOWEL_AUDIO } from "./assets/vowels";
+import { BONUS_AUDIO } from "./assets/bonus";
+import { TRICK_AUDIO } from "./assets/trick";
+import { BONUS_PAIRS, TRICK_WORDS } from "./audio-words";
 import { MathBlasters } from "./MathBlasters";
 import { SoundBlaster } from "../SoundBlaster";
+import { BonusLetterBlaster } from "../BonusLetterBlaster";
+import { TrickWordSpelling } from "../TrickWordSpelling";
 
 type GameState = ApiResponse<typeof api, "getGameState">;
 type Verdict = "correct" | "wrong" | "retry" | null;
-type View = "menu" | "bed" | "sound-sort" | "pair-picker" | "write-it" | "math-blasters" | "sound-blaster";
-type PracticeGameId = "sound-sort" | "pair-picker" | "write-it" | "math-blasters" | "sound-blaster";
+type View = "menu" | "bed" | "sound-sort" | "pair-picker" | "write-it" | "math-blasters" | "sound-blaster" | "bonus-blaster" | "trick-words";
+type PracticeGameId = "sound-sort" | "pair-picker" | "write-it" | "math-blasters" | "sound-blaster" | "bonus-blaster" | "trick-words";
 type Vowel = "o" | "u";
 type PracticeWord = { word: string; vowel: Vowel; vowelIndex: number; audio: string };
 type PracticeRecorder = (gameId: PracticeGameId, correct: boolean, word?: PracticeWord) => Promise<void>;
@@ -70,6 +75,8 @@ const PRACTICE_WORDS: PracticeWord[] = [
 const SOUND_SORT_WORDS = PRACTICE_WORDS.filter((item) => item.word !== "up");
 const WRITE_WORDS = PRACTICE_WORDS.filter((item) => item.word.length <= 4);
 const WORD_AUDIO = new Map(PRACTICE_WORDS.map((item) => [item.word, item.audio]));
+const BONUS_WORDS = BONUS_PAIRS.map(([word, fake]) => ({ word, fake, audio: BONUS_AUDIO[word] }));
+const TRICK_AUDIO_WORDS = TRICK_WORDS.map((word) => ({ word, audio: TRICK_AUDIO[word] }));
 const PAIRS = [
   ["cot", "cut"], ["cop", "cup"], ["cob", "cub"], ["cod", "cud"], ["bog", "bug"],
   ["dog", "dug"], ["hog", "hug"], ["lock", "luck"], ["dock", "duck"], ["sock", "suck"],
@@ -239,7 +246,7 @@ function GameMenu({ state, onPlay, onOpenShop, onResetMissed, resettingMissed }:
   ];
   return <>
     <header className="menu-tools">
-      <span className="game-count">6 games</span>
+      <span className="game-count">8 games</span>
       <button className="coin-purse" type="button" onClick={onOpenShop} aria-label={`${state?.coins ?? 10} coins, open prize shop`}>
         <CoinIcon /><strong>{state?.coins ?? 10}</strong><small>SHOP</small>
       </button>
@@ -287,6 +294,26 @@ function GameMenu({ state, onPlay, onOpenShop, onResetMissed, resettingMissed }:
           <span className="game-name">Sound Blaster</span>
           <span className="game-pronunciation">Blast the vowel!</span>
           <span className="game-rule">Hear the word twice, then blast short o or short u.</span>
+        </span>
+        <span className="play-pill">Play <span aria-hidden="true">→</span></span>
+      </button>
+
+      <button className="game-tile bonus-game-tile" type="button" onClick={() => onPlay("bonus-blaster")} aria-label="Play Bonus Letter Blaster">
+        <span className="math-tile-art bonus-tile-art" aria-hidden="true">f · l · s</span>
+        <span className="game-tile-copy">
+          <span className="game-name">Bonus Letter Blaster</span>
+          <span className="game-pronunciation">Blast the bonus letter!</span>
+          <span className="game-rule">Choose the spelling with the extra f, l, or s.</span>
+        </span>
+        <span className="play-pill">Play <span aria-hidden="true">→</span></span>
+      </button>
+
+      <button className="game-tile trick-game-tile" type="button" onClick={() => onPlay("trick-words")} aria-label="Play Trick Word Typist">
+        <span className="math-tile-art trick-tile-art" aria-hidden="true">you · said</span>
+        <span className="game-tile-copy">
+          <span className="game-name">Trick Word Typist</span>
+          <span className="game-pronunciation">Hear it, then write it!</span>
+          <span className="game-rule">Spell the Unit 4 trick words from memory.</span>
         </span>
         <span className="play-pill">Play <span aria-hidden="true">→</span></span>
       </button>
@@ -842,6 +869,8 @@ export function App() {
     {view === "write-it" && state && <WriteItGame state={state} onBack={() => startGame("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} onRecord={savePractice} />}
     {view === "math-blasters" && state && <MathBlasters coins={state.coins} onBack={() => startGame("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} onRecord={(correct) => savePractice("math-blasters", correct)} />}
     {view === "sound-blaster" && state && <SoundBlaster coins={state.coins} words={soundBlasterWords} onBack={() => startGame("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} onRecord={(correct, word) => savePractice("sound-blaster", correct, { ...word, vowelIndex: word.word.indexOf(word.vowel) })} />}
+    {view === "bonus-blaster" && state && <BonusLetterBlaster coins={state.coins} words={BONUS_WORDS} onBack={() => startGame("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} onRecord={(correct) => savePractice("bonus-blaster", correct)} />}
+    {view === "trick-words" && state && <TrickWordSpelling coins={state.coins} words={TRICK_AUDIO_WORDS} onBack={() => startGame("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} onRecord={(correct) => savePractice("trick-words", correct)} />}
     {view !== "menu" && view !== "bed" && !state && <div className="stats-loading page-loading">{game.isError ? "Progress couldn’t load yet." : "Loading your coins…"}</div>}
 
     {view === "bed" && <>

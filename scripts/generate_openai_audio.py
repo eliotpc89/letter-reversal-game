@@ -52,36 +52,45 @@ def expected_speech(path: pathlib.Path) -> str:
     return stem.removesuffix("_new").replace("-", " ")
 
 
-def desired_word_specs() -> list[tuple[str, str]]:
-    source = APP_SOURCE.read_text(encoding="utf-8")
-    specs: list[tuple[str, str]] = []
+def _array_words(source: str, name: str) -> list[str]:
+    match = re.search(rf"(?:export\s+)?const {name}\s*=\s*\[(.*?)\]\s*as const;", source, re.S)
+    if not match:
+        raise ValueError(f"Could not find {name}")
+    return re.findall(r'"([a-z]+)"', match.group(1))
+
+
+def desired_audio_specs() -> list[tuple[str, str, str]]:
+    app_source = APP_SOURCE.read_text(encoding="utf-8")
+    audio_source = (ROOT / "game-src/src/audio-words.ts").read_text(encoding="utf-8")
+    specs: list[tuple[str, str, str]] = []
     for constant, vowel in (("SHORT_O_WORDS", "o"), ("SHORT_U_WORDS", "u")):
-        match = re.search(rf"const {constant}\s*=\s*\[(.*?)\]\s*as const;", source, re.S)
-        if not match:
-            raise ValueError(f"Could not find {constant} in {APP_SOURCE}")
-        specs.extend((word, vowel) for word in re.findall(r'"([a-z]+)"', match.group(1)))
+        specs.extend(("vowels", word, vowel) for word in _array_words(app_source, constant))
+    specs.extend(("bonus", word, "") for word in _array_words(audio_source, "BONUS_AUDIO_WORDS"))
+    specs.extend(("trick", word, "") for word in _array_words(audio_source, "TRICK_WORDS"))
     return specs
 
 
-def validate_word_wiring(specs: list[tuple[str, str]]) -> list[str]:
+def validate_audio_wiring(specs: list[tuple[str, str, str]]) -> list[str]:
     errors: list[str] = []
-    seen: set[str] = set()
-    index_source = VOWEL_INDEX.read_text(encoding="utf-8")
-    for word, vowel in specs:
-        if word in seen:
-            errors.append(f"duplicate word in App.tsx: {word}")
-        seen.add(word)
-        if word == "mom":
-            errors.append("mom is intentionally removed from the word bank")
-        if word.count(vowel) != 1:
-            errors.append(f"{word} does not contain exactly one target vowel {vowel}")
+    seen: set[tuple[str, str]] = set()
+    index_sources: dict[str, str] = {}
+    for directory, word, vowel in specs:
+        key = (directory, word)
+        if key in seen:
+            errors.append(f"duplicate audio word: {directory}/{word}")
+        seen.add(key)
+        index_path = ASSET_ROOT / directory / "index.ts"
+        if not index_path.exists():
+            errors.append(f"missing audio index: {index_path}")
+            continue
+        index_source = index_sources.setdefault(directory, index_path.read_text(encoding="utf-8"))
         if not re.search(rf'import\s+{re.escape(word)}\s+from\s+"\./{re.escape(word)}\.mp3";', index_source):
-            errors.append(f"missing audio import for {word}")
+            errors.append(f"missing audio import for {directory}/{word}")
         if not re.search(rf"\b{re.escape(word)},", index_source):
-            errors.append(f"missing VOWEL_AUDIO entry for {word}")
+            errors.append(f"missing audio map entry for {directory}/{word}")
+        if directory == "vowels" and word.count(vowel) != 1:
+            errors.append(f"{word} does not contain exactly one target vowel {vowel}")
     return errors
-
-
 def call_tts(key: str, speech: str, destination: pathlib.Path) -> None:
     body = json.dumps(
         {
@@ -217,8 +226,8 @@ def main() -> int:
         print("Missing repository Actions secret: openaivoice", file=sys.stderr)
         return 2
     try:
-        specs = desired_word_specs()
-        wiring_errors = validate_word_wiring(specs)
+        specs = desired_audio_specs()
+        wiring_errors = validate_audio_wiring(specs)
     except Exception as exc:
         print(f"Static source check failed: {exc}", file=sys.stderr)
         return 2
@@ -228,12 +237,14 @@ def main() -> int:
             print(f"- {error}", file=sys.stderr)
         return 2
     assets = sorted(ASSET_ROOT.rglob("*.mp3"))
-    desired_assets = [ASSET_ROOT / "vowels" / f"{word}.mp3" for word, _ in specs]
+    desired_assets = [ASSET_ROOT / directory / f"{word}.mp3" for directory, word, _ in specs]
     missing_assets = [path for path in desired_assets if not path.exists()]
-    targets = sorted(set(assets + missing_assets))
+    scope = os.environ.get("AUDIO_SCOPE", "all").strip().lower()
+    targets = sorted(set(missing_assets if scope == "new" else assets + missing_assets))
     if not targets:
-        print("No source MP3 files found", file=sys.stderr)
-        return 2
+        write_report([], [])
+        print(f"No new source MP3 files to generate; AUDIO_SCOPE={scope}")
+        return 0
     for root in (PREVIEW_ASSETS,):
         root.mkdir(parents=True, exist_ok=True)
     rows: list[dict[str, object]] = []
