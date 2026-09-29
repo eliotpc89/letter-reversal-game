@@ -77,6 +77,7 @@ export function validatePack(id: PackId, pack: unknown): string[] {
   if (id === "odd-one-out") return validateOddOneOut(pack);
   if (id === "trick-words") return validateTrickWords(pack);
   if (id === "bonus-words") return validateBonusWords(pack);
+  if (id === "math-blaster") return validateMathBlaster(pack);
   return [`unknown pack id "${id}"`];
 }
 
@@ -105,6 +106,28 @@ export function validateBonusWords(pack: unknown): string[] {
     if (!WORD.test(pair[0]) || !WORD.test(pair[1])) errors.push(`bonus-words.pairs[${index}] must be lowercase-alpha words`);
     if (seen.has(pair[0])) errors.push(`bonus-words.pairs[${index}] duplicates word "${pair[0]}"`);
     seen.add(pair[0]);
+  });
+  return errors;
+}
+
+export function validateMathBlaster(pack: unknown): string[] {
+  if (!isRecord(pack)) return ["math-blaster pack is not an object"];
+  const errors: string[] = [];
+  if (!Array.isArray(pack.sets) || pack.sets.length === 0) return [...errors, "math-blaster.sets must be a non-empty array"];
+  const seen = new Set<string>();
+  (pack.sets as unknown[]).forEach((set, index) => {
+    const where = `math-blaster.sets[${index}]`;
+    if (!isRecord(set)) { errors.push(`${where} is not an object`); return; }
+    if (typeof set.id !== "string" || !set.id) errors.push(`${where}.id must be a non-empty string`);
+    else if (seen.has(set.id)) errors.push(`${where}.id "${set.id}" is duplicated`);
+    else seen.add(set.id);
+    if (typeof set.label !== "string" || !set.label) errors.push(`${where}.label must be a non-empty string`);
+    if (set.operator !== "+" && set.operator !== "−") errors.push(`${where}.operator must be "+" or "−"`);
+    if (!Number.isInteger(set.operand) || (set.operand as number) < 1) errors.push(`${where}.operand must be a positive integer`);
+    if (!Number.isInteger(set.max) || (set.max as number) < 1) errors.push(`${where}.max must be a positive integer`);
+    if (Number.isInteger(set.operand) && Number.isInteger(set.max) && (set.max as number) < (set.operand as number)) {
+      errors.push(`${where}.max must be at least operand, or the set has no problems`);
+    }
   });
   return errors;
 }

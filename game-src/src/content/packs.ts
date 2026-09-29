@@ -34,10 +34,31 @@ export type BonusWordsPack = {
   pairs: [string, string][];
 };
 
+export type MathOperator = "+" | "−";
+/**
+ * One selectable problem set. Problems are generated from the params, so a
+ * new set is one JSON entry:
+ * - "+": every x + operand with x in 0..(max - operand) (max is the top answer)
+ * - "−": every x − operand with x in operand..max (max is the top minuend)
+ */
+export type MathSet = {
+  id: string;
+  label: string;
+  operator: MathOperator;
+  operand: number;
+  max: number;
+};
+export type MathBlasterPack = {
+  id: "math-blaster";
+  version: number;
+  sets: MathSet[];
+};
+
 export type PackMap = {
   "phonics-core": PhonicsCorePack;
   "odd-one-out": OddOneOutPack;
   "trick-words": TrickWordsPack;
   "bonus-words": BonusWordsPack;
+  "math-blaster": MathBlasterPack;
 };
 export type PackId = keyof PackMap;

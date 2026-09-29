@@ -7,6 +7,7 @@ import fallbackPhonicsJson from "../../public/content/packs/phonics-core.json";
 import fallbackOddJson from "../../public/content/packs/odd-one-out.json";
 import fallbackTrickJson from "../../public/content/packs/trick-words.json";
 import fallbackBonusJson from "../../public/content/packs/bonus-words.json";
+import fallbackMathJson from "../../public/content/packs/math-blaster.json";
 import type { ContentManifest, PackId, PackMap } from "./packs";
 import { validateManifest, validatePack } from "./validate";
 
@@ -27,6 +28,7 @@ const FALLBACK_BUNDLE: ContentBundle = {
     "odd-one-out": fallbackOddJson as PackMap["odd-one-out"],
     "trick-words": fallbackTrickJson as PackMap["trick-words"],
     "bonus-words": fallbackBonusJson as PackMap["bonus-words"],
+    "math-blaster": fallbackMathJson as PackMap["math-blaster"],
   },
 };
 
@@ -37,7 +39,7 @@ function readCache(): { version: number; packs: PackMap } | null {
     const parsed = JSON.parse(raw) as { version?: unknown; packs?: unknown };
     if (typeof parsed.version !== "number" || typeof parsed.packs !== "object" || parsed.packs === null) return null;
     const packs = parsed.packs as Partial<PackMap>;
-    if (!packs["phonics-core"] || !packs["odd-one-out"] || !packs["trick-words"] || !packs["bonus-words"]) return null;
+    if (!packs["phonics-core"] || !packs["odd-one-out"] || !packs["trick-words"] || !packs["bonus-words"] || !packs["math-blaster"]) return null;
     return { version: parsed.version, packs: packs as PackMap };
   } catch {
     return null;
