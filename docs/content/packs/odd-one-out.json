@@ -1,0 +1,14 @@
+{
+  "id": "odd-one-out",
+  "version": 1,
+  "rounds": [
+    {
+      "matchPool": "short-o",
+      "oddPool": "short-u"
+    },
+    {
+      "matchPool": "short-u",
+      "oddPool": "short-o"
+    }
+  ]
+}

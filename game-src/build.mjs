@@ -65,6 +65,13 @@ if (assetFiles.length > 0) {
 
 console.log(`built ${OUTDIR} OK`);
 
+// Runtime content packs live in ./public and are fetched as plain JSON by
+// the content loader (with last-known-good cache + bundled fallback), so
+// new words ship as data. Copy them into dist before the docs sync.
+const PUBLIC = new URL("./public/", import.meta.url);
+await cp(PUBLIC, new URL("./dist/", import.meta.url), { recursive: true });
+console.log("copied ./public OK");
+
 // Publish step: refresh the GitHub Pages output that lives next to this
 // source tree, so one command rebuilds the live site.
 const DOCS = new URL("../docs/", import.meta.url);

@@ -1,9 +1,8 @@
-// Local persistence layer for the GitHub Pages build.
-//
-// Same action surface the hosted arcade exposes through its server actions,
-// but the game state lives in the browser's localStorage instead of SQLite,
-// so coins, trophies, and scores persist on the device with no login and no
 // backend. All functions are async to match the original RPC signatures.
+
+// Practice-stat game ids live in the leaf ids module (no import cycle:
+// the component registry depends on it too).
+import { PRACTICE_GAME_IDS } from "./games/ids";
 
 export type Letter = "b" | "d" | "p" | "q" | "n" | "u" | "c" | "k";
 export type TrophyId =
@@ -25,10 +24,10 @@ export type TrophyId =
   | "x-wing"
   | "poop-emoji"
   | "starfox-laser";
-export type PracticeGameId = "sound-sort" | "pair-picker" | "write-it" | "math-blasters";
+export type PracticeGameId = string;
 
 const LETTERS: Letter[] = ["b", "d", "p", "q", "n", "u", "c", "k"];
-const PRACTICE_GAMES: PracticeGameId[] = ["sound-sort", "pair-picker", "write-it", "math-blasters"];
+const PRACTICE_GAMES: PracticeGameId[] = PRACTICE_GAME_IDS;
 const TROPHY_PRICES: Record<TrophyId, number> = {
   star: 15,
   "one-up": 30,

@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "packs": [
+    {
+      "id": "phonics-core",
+      "file": "phonics-core.json",
+      "version": 1
+    },
+    {
+      "id": "odd-one-out",
+      "file": "odd-one-out.json",
+      "version": 1
+    }
+  ]
+}
