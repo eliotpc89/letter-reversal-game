@@ -32,7 +32,7 @@ const wordSets = [];
 const phonics = packs["phonics-core"];
 if (phonics) wordSets.push([...phonics.shortO, ...phonics.shortU]);
 const trick = packs["trick-words"];
-if (trick) wordSets.push(trick.words);
+if (trick) wordSets.push(trick.packs.flatMap((pack) => pack.words));
 const bonus = packs["bonus-words"];
 if (bonus) wordSets.push(bonus.pairs.map(([word]) => word));
 const words = new Set(wordSets.flat());

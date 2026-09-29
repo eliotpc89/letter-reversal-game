@@ -55,8 +55,13 @@ export function shuffled<T>(values: readonly T[]): T[] {
 }
 
 /** Trick words keep the pack's test order. */
-export function buildTrickWords(pack: TrickWordsPack): TrickWord[] {
-  return pack.words.map((word) => ({ word, audio: `content/audio/${word}.mp3` }));
+export type TrickWordPack = { id: string; label: string; words: TrickWord[] };
+export function buildTrickWordPacks(pack: TrickWordsPack): TrickWordPack[] {
+  return pack.packs.map((entry) => ({
+    id: entry.id,
+    label: entry.label,
+    words: entry.words.map((word) => ({ word, audio: `content/audio/${word}.mp3` })),
+  }));
 }
 
 /** Bonus-letter pairs: the correct spelling and its decoy. */

@@ -606,6 +606,19 @@ html.math-fullscreen, body.math-fullscreen { height: 100%; overflow: hidden; ove
 body.math-fullscreen { touch-action: none; }
 .math-fullscreen .hatch-space-root { height: 100dvh; overflow: hidden; }
 
+/* Scroll lock: while any game is open the page never scrolls or
+   rubber-bands. Taller game layouts (practice, drawing, trick words)
+   scroll inside the app root instead of the page; the falling games keep
+   their stricter fullscreen lock above. */
+html.arcade-locked, body.arcade-locked { height: 100%; overflow: hidden; overscroll-behavior: none; }
+html.arcade-locked:not(.math-fullscreen) body .hatch-space-root {
+  height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: manipulation;
+  -webkit-overflow-scrolling: touch;
+}
+
 
 /* Bonus-letter and trick-word games */
 .bonus-stage { overflow: hidden; }

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { loadContent, getFallbackBundle, type ContentBundle } from "./loader";
-import { buildBonusWords, buildTrickWords, buildWordBank, type BonusWord, type TrickWord, type WordBank } from "./word-bank";
+import { buildBonusWords, buildTrickWordPacks, buildWordBank, type BonusWord, type TrickWordPack, type WordBank } from "./word-bank";
 import type { MathBlasterPack, OddOneOutPack } from "./packs";
 
 /** Everything a game needs from content: derived word lists plus the odd-one-out rounds. */
@@ -8,7 +8,7 @@ export type ArcadeContent = {
   bundle: ContentBundle;
   bank: WordBank;
   oddOneOut: OddOneOutPack;
-  trickWords: TrickWord[];
+  trickPacks: TrickWordPack[];
   bonusWords: BonusWord[];
   mathBlaster: MathBlasterPack;
 };
@@ -28,7 +28,7 @@ export function ContentProvider({ children }: { children: ReactNode }) {
     bundle,
     bank: buildWordBank(bundle.packs["phonics-core"]),
     oddOneOut: bundle.packs["odd-one-out"],
-    trickWords: buildTrickWords(bundle.packs["trick-words"]),
+    trickPacks: buildTrickWordPacks(bundle.packs["trick-words"]),
     bonusWords: buildBonusWords(bundle.packs["bonus-words"]),
     mathBlaster: bundle.packs["math-blaster"],
   }), [bundle]);

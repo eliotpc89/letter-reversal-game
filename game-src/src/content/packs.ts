@@ -20,11 +20,16 @@ export type OddOneOutPack = {
   rounds: OddRound[];
 };
 
-/** Trick words are tested in listed order. */
+/** Trick words are tested in listed order. Packs let new units ship as data. */
+export type TrickWordSet = {
+  id: string;
+  label: string;
+  words: string[];
+};
 export type TrickWordsPack = {
   id: "trick-words";
   version: number;
-  words: string[];
+  packs: TrickWordSet[];
 };
 
 /** Bonus-letter pairs: [correct spelling, decoy missing the bonus letter]. */

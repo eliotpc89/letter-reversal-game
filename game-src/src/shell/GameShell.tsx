@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 import { CoinIcon, GamesIcon } from "../icons";
+import { useScrollLock } from "./useScrollLock";
 
 export type ShellVariant = "practice" | "math" | "bed";
 
@@ -37,6 +38,7 @@ export function GameShell({
   fullscreenClass,
   children,
 }: GameShellProps) {
+  useScrollLock();
   useEffect(() => {
     if (!fullscreenClass) return;
     document.documentElement.classList.add(fullscreenClass);

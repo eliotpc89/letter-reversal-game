@@ -84,13 +84,23 @@ export function validatePack(id: PackId, pack: unknown): string[] {
 export function validateTrickWords(pack: unknown): string[] {
   if (!isRecord(pack)) return ["trick-words pack is not an object"];
   const errors: string[] = [];
-  const words = pack.words;
-  if (!Array.isArray(words) || words.length === 0) return ["trick-words.words must be a non-empty array"];
-  words.forEach((word, index) => {
-    if (typeof word !== "string" || !WORD.test(word)) errors.push(`trick-words.words[${index}] must be a lowercase-alpha word`);
+  if (!Array.isArray(pack.packs) || pack.packs.length === 0) return [...errors, "trick-words.packs must be a non-empty array"];
+  const seen = new Set<string>();
+  (pack.packs as unknown[]).forEach((entry, index) => {
+    const where = `trick-words.packs[${index}]`;
+    if (!isRecord(entry)) { errors.push(`${where} is not an object`); return; }
+    if (typeof entry.id !== "string" || !entry.id) errors.push(`${where}.id must be a non-empty string`);
+    else if (seen.has(entry.id)) errors.push(`${where}.id "${entry.id}" is duplicated`);
+    else seen.add(entry.id);
+    if (typeof entry.label !== "string" || !entry.label) errors.push(`${where}.label must be a non-empty string`);
+    const words = entry.words;
+    if (!Array.isArray(words) || words.length === 0) { errors.push(`${where}.words must be a non-empty array`); return; }
+    words.forEach((word, wordIndex) => {
+      if (typeof word !== "string" || !WORD.test(word)) errors.push(`${where}.words[${wordIndex}] must be a lowercase-alpha word`);
+    });
+    const dupes = (words as string[]).filter((word, i) => (words as string[]).indexOf(word) !== i);
+    if (dupes.length) errors.push(`${where}.words has duplicates: ${[...new Set(dupes)].join(", ")}`);
   });
-  const dupes = (words as string[]).filter((word, i) => (words as string[]).indexOf(word) !== i);
-  if (dupes.length) errors.push(`trick-words.words has duplicates: ${[...new Set(dupes)].join(", ")}`);
   return errors;
 }
 

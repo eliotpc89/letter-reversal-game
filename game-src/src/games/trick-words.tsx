@@ -1,20 +1,64 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAudioClip } from "../kit/useAudioClip";
 import { useContent } from "../content/ContentContext";
-import { shuffled, type TrickWord } from "../content/word-bank";
+import { useScrollLock } from "../shell/useScrollLock";
+import { shuffled, type TrickWord, type TrickWordPack } from "../content/word-bank";
 import type { GameContext } from "./types";
 
 const VOWELS = ["a", "e", "i", "o", "u"] as const;
 const DECOYS = ["b", "c", "d", "f", "g", "h", "j", "k", "l", "m", "n", "p", "q", "r", "s", "t", "v", "w", "x", "y", "z"];
 const FALLBACK_WORD: TrickWord = { word: "said", audio: "" };
 
+function CoinPurse({ coins, onOpenShop }: { coins: number; onOpenShop: () => void }) {
+  return <button className="coin-purse small-purse" type="button" onClick={onOpenShop} aria-label={`${coins} coins, open prize shop`}><span className="coin">★</span><strong>{coins}</strong></button>;
+}
+
 /**
- * Trick Word Typist: hear a Unit 4 trick word, spell it on the on-screen
- * keyboard. Words are tested in pack order, one full pass per game.
+ * Trick Word Typist: hear a trick word, spell it on the on-screen keyboard.
+ * Words come from the selected trick-word content pack (e.g. Unit 4), tested
+ * in pack order, one full pass per game. New packs ship as JSON data.
  */
 export function TrickWordSpellingGame({ coins, onBack, onOpenShop, onRecord }: GameContext) {
-  const { trickWords } = useContent();
-  const words = trickWords.length ? trickWords : [FALLBACK_WORD];
+  const { trickPacks } = useContent();
+  const [packId, setPackId] = useState<string | null>(null);
+  const pack = trickPacks.find((candidate) => candidate.id === packId) ?? null;
+  useScrollLock();
+
+  if (!pack) {
+    return <>
+      <header className="practice-header trick-header">
+        <button className="back-button" type="button" onClick={onBack} aria-label="Back to game menu">←</button>
+        <div><span>Trick words</span><strong>Pick your pack!</strong></div>
+        <CoinPurse coins={coins} onOpenShop={onOpenShop} />
+      </header>
+      <main className="practice-main trick-main">
+        <section className="practice-stage trick-stage" aria-label="Choose a trick word pack">
+          <p className="round-count">Tap a pack to start its spelling test</p>
+          <div className="word-choices">
+            {trickPacks.map((candidate) => (
+              <button key={candidate.id} type="button" onClick={() => setPackId(candidate.id)} aria-label={`Play ${candidate.label}, ${candidate.words.length} words`}>
+                <span>{candidate.label}</span>
+                <b style={{ display: "block", fontSize: 14 }}>{candidate.words.length} words</b>
+              </button>
+            ))}
+          </div>
+        </section>
+        <p className="grownup-tip">New units arrive as data — no app update needed.</p>
+      </main>
+    </>;
+  }
+
+  return <TrickTyper key={pack.id} pack={pack} coins={coins} onBack={() => setPackId(null)} onOpenShop={onOpenShop} onRecord={onRecord} />;
+}
+
+function TrickTyper({ pack, coins, onBack, onOpenShop, onRecord }: {
+  pack: TrickWordPack;
+  coins: number;
+  onBack: () => void;
+  onOpenShop: () => void;
+  onRecord: GameContext["onRecord"];
+}) {
+  const words = pack.words.length ? pack.words : [FALLBACK_WORD];
   const playWord = useAudioClip();
   const [questionIndex, setQuestionIndex] = useState(0);
   const [target, setTarget] = useState<TrickWord>(() => words[0] ?? FALLBACK_WORD);
@@ -43,7 +87,7 @@ export function TrickWordSpellingGame({ coins, onBack, onOpenShop, onRecord }: G
     const nextIndex = questionIndex + 1;
     if (nextIndex >= words.length) {
       setTestComplete(true);
-      setFeedback("Test complete! You finished all of the Unit 4 trick words.");
+      setFeedback(`Test complete! You finished all of the ${pack.label} trick words.`);
       return;
     }
     setQuestionIndex(nextIndex);
@@ -74,9 +118,9 @@ export function TrickWordSpellingGame({ coins, onBack, onOpenShop, onRecord }: G
 
   return <>
     <header className="practice-header trick-header">
-      <button className="back-button" type="button" onClick={onBack} aria-label="Back to game menu">←</button>
-      <div><span>Unit 4</span><strong>Trick Word Typist</strong></div>
-      <button className="coin-purse small-purse" type="button" onClick={onOpenShop} aria-label={`${coins} coins, open prize shop`}><span className="coin">★</span><strong>{coins}</strong></button>
+      <button className="back-button" type="button" onClick={onBack} aria-label="Back to pack picker">←</button>
+      <div><span>{pack.label}</span><strong>Trick Word Typist</strong></div>
+      <CoinPurse coins={coins} onOpenShop={onOpenShop} />
     </header>
     <main className="practice-main trick-main">
       <section className="practice-stage trick-stage" aria-labelledby="trick-question">
