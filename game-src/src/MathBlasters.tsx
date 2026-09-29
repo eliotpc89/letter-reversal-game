@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ensureAudioContext } from "./kit/audio";
 import { playDamage, playLaser, playShieldDown } from "./kit/sfx";
+import { GameShell } from "./shell/GameShell";
 
 type MathProblem = {
   left: number;
@@ -93,15 +94,6 @@ export function MathBlasters({ coins, onBack, onOpenShop, onRecord }: MathBlaste
   const [gameOver, setGameOver] = useState(false);
   const [busy, setBusy] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
-
-  useEffect(() => {
-    document.documentElement.classList.add("math-fullscreen");
-    document.body.classList.add("math-fullscreen");
-    return () => {
-      document.documentElement.classList.remove("math-fullscreen");
-      document.body.classList.remove("math-fullscreen");
-    };
-  }, []);
 
   const nextRound = useCallback(() => {
     const next = round + 1;
@@ -212,14 +204,12 @@ export function MathBlasters({ coins, onBack, onOpenShop, onRecord }: MathBlaste
 
   const shieldPips = useMemo(() => [0, 1, 2], []);
 
-  return <>
-    <header className="math-header">
-      <button className="back-button" type="button" onClick={onBack} aria-label="Back to game menu">←</button>
-      <div className="math-title"><span>Math Blasters</span><strong>Blast it!</strong></div>
+  const hud = <>
       <div className="math-hud-block math-score-block"><span>Score</span><strong>{score}</strong><small>R{round}</small></div>
       <div className="math-hud-block shield-meter"><span>Shields</span><strong>{shieldPips.map((pip) => <i key={pip} className={pip < shields ? "active" : ""}>◆</i>)}</strong></div>
-      <button className="coin-purse math-shop" type="button" onClick={onOpenShop} aria-label={`${coins} coins, open prize shop`}><span className="coin coin-small">★</span><strong>{coins}</strong><small>SHOP</small></button>
-    </header>
+    </>;
+
+  return <GameShell variant="math" eyebrow="Math Blasters" title="Blast it!" coins={coins} onBack={onBack} onOpenShop={onOpenShop} hud={hud} fullscreenClass="math-fullscreen">
     <main className="math-main">
       <section ref={stageRef} className="math-stage" aria-labelledby="math-problem">
         <div className="math-stars" aria-hidden="true" />
@@ -239,5 +229,5 @@ export function MathBlasters({ coins, onBack, onOpenShop, onRecord }: MathBlaste
       </section>
       <div className="math-controls"><p>Correct answer = laser blast + coins. Wrong answer = ship damage.</p><button type="button" onClick={() => setSoundOn((value) => !value)}>{soundOn ? "🔊 Sounds on" : "🔇 Sounds off"}</button></div>
     </main>
-  </>;
+  </GameShell>;
 }

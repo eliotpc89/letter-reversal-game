@@ -6,6 +6,7 @@ import { classifyDrawing, isConfidentMatch, LETTERS, type Letter } from "./draw-
 import { CoinIcon, GamesIcon, SpeakerIcon, TrophyIcon, type TrophyId } from "./icons";
 import { useAudioClip } from "./kit/useAudioClip";
 import { playJackpot, playWhomp } from "./kit/sfx";
+import { GameShell } from "./shell/GameShell";
 import bSound from "./assets/letters/b.mp3";
 import dSound from "./assets/letters/d.mp3";
 import pSound from "./assets/letters/p.mp3";
@@ -210,14 +211,6 @@ function GameMenu({ state, onPlay, onOpenShop }: { state: GameState | undefined;
   </>;
 }
 
-function PracticeHeader({ title, coins, onBack, onOpenShop }: { title: string; coins: number; onBack: () => void; onOpenShop: () => void }) {
-  return <header className="practice-header">
-    <button className="back-button" type="button" onClick={onBack} aria-label="Back to game menu">←</button>
-    <div><span>Short o + u</span><strong>{title}</strong></div>
-    <button className="coin-purse small-purse" type="button" onClick={onOpenShop} aria-label={`${coins} coins, open prize shop`}><CoinIcon /><strong>{coins}</strong></button>
-  </header>;
-}
-
 function RoundResult({ verdict, onNext, wrongMessage = "Listen once more next round." }: { verdict: Exclude<Verdict, null>; onNext: () => void; wrongMessage?: string }) {
   return <div className={`round-result ${verdict}`} role="status">
     <div><strong>{verdict === "correct" ? "You got it!" : "Good try!"}</strong><span>{verdict === "correct" ? "+3 coins" : wrongMessage}</span></div>
@@ -241,8 +234,7 @@ function SoundSortGame({ state, onBack, onOpenShop, onRecord }: { state: GameSta
     setTarget((old) => shuffled(SOUND_SORT_WORDS.filter((item) => item.word !== old.word))[0] ?? DEFAULT_WORD);
     setVerdict(null);
   };
-  return <>
-    <PracticeHeader title="o or u?" coins={state.coins} onBack={onBack} onOpenShop={onOpenShop} />
+  return <GameShell variant="practice" eyebrow="Short o + u" title="o or u?" coins={state.coins} onBack={onBack} onOpenShop={onOpenShop}>
     <main className="practice-main">
       <div className="lesson-note"><b>Listen to the whole word.</b> Which short vowel is in the middle?</div>
       <section className="practice-stage" aria-labelledby="sound-question">
@@ -257,7 +249,7 @@ function SoundSortGame({ state, onBack, onOpenShop, onRecord }: { state: GameSta
       {verdict && <RoundResult verdict={verdict} onNext={next} />}
       <p className="grownup-tip">The words come in random order, so listen to the middle sound each time.</p>
     </main>
-  </>;
+  </GameShell>;
 }
 
 function PairPickerGame({ state, onBack, onOpenShop, onRecord }: { state: GameState; onBack: () => void; onOpenShop: () => void; onRecord: (gameId: PracticeGameId, correct: boolean) => Promise<void> }) {
@@ -289,8 +281,7 @@ function PairPickerGame({ state, onBack, onOpenShop, onRecord }: { state: GameSt
     setVerdict(null);
   };
   const switchMode = (nextMode: "pick" | "sort") => { setMode(nextMode); setVerdict(null); };
-  return <>
-    <PracticeHeader title="Pair picker" coins={state.coins} onBack={onBack} onOpenShop={onOpenShop} />
+  return <GameShell variant="practice" eyebrow="Short o + u" title="Pair picker" coins={state.coins} onBack={onBack} onOpenShop={onOpenShop}>
     <main className="practice-main">
       <div className="mode-switch" aria-label="Pair picker activity"><button type="button" className={mode === "pick" ? "active" : ""} onClick={() => switchMode("pick")}>Listen & pick</button><button type="button" className={mode === "sort" ? "active" : ""} onClick={() => switchMode("sort")}>Sort words</button></div>
       <section className="practice-stage" aria-labelledby="pair-question">
@@ -303,7 +294,7 @@ function PairPickerGame({ state, onBack, onOpenShop, onRecord }: { state: GameSt
       {verdict && <RoundResult verdict={verdict} onNext={next} />}
       <p className="grownup-tip">Tap each sound from thumb to fingers, listening closely to the vowel.</p>
     </main>
-  </>;
+  </GameShell>;
 }
 
 function WriteItGame({ state, onBack, onOpenShop, onRecord }: { state: GameState; onBack: () => void; onOpenShop: () => void; onRecord: (gameId: PracticeGameId, correct: boolean) => Promise<void> }) {
@@ -333,8 +324,7 @@ function WriteItGame({ state, onBack, onOpenShop, onRecord }: { state: GameState
     try { await onRecord("write-it", right); setVerdict(right ? "correct" : "wrong"); } finally { setBusy(false); }
   };
   const next = () => setTarget((old) => shuffled(WRITE_WORDS.filter((item) => item.word !== old.word))[0] ?? DEFAULT_WORD);
-  return <>
-    <PracticeHeader title="Write it" coins={state.coins} onBack={onBack} onOpenShop={onOpenShop} />
+  return <GameShell variant="practice" eyebrow="Short o + u" title="Write it" coins={state.coins} onBack={onBack} onOpenShop={onOpenShop}>
     <main className="practice-main">
       <section className="practice-stage write-stage" aria-labelledby="write-question">
         <p className="round-count">Listen · tap letters · mark the vowel</p>
@@ -354,7 +344,7 @@ function WriteItGame({ state, onBack, onOpenShop, onRecord }: { state: GameState
       {verdict && <RoundResult verdict={verdict} onNext={next} wrongMessage={wrongMessage} />}
       <p className="grownup-tip">After building it, underline the whole closed syllable with a finger.</p>
     </main>
-  </>;
+  </GameShell>;
 }
 
 function Scoreboard({ state, onReset, resetting }: { state: GameState; onReset: () => void; resetting: boolean }) {
@@ -664,17 +654,13 @@ export function App() {
     {view === "math-blasters" && state && <MathBlasters coins={state.coins} onBack={() => setView("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} onRecord={(correct) => savePractice("math-blasters", correct)} />}
     {view !== "menu" && view !== "bed" && !state && <div className="stats-loading page-loading">{game.isError ? "Progress couldn’t load yet." : "Loading your coins…"}</div>}
 
-    {view === "bed" && <>
-      <header className="play-header">
-        <button className="games-button" type="button" onClick={() => setView("menu")} aria-label="Back to game menu"><GamesIcon /></button>
+    {view === "bed" && <GameShell variant="bed" eyebrow="" title="" coins={state?.coins ?? 10} onBack={() => setView("menu")} onOpenShop={() => { setShopMessage(null); setShopOpen(true); }} action={<>
         <button className={`sound-button ${heard ? "heard" : ""}`} type="button" onClick={() => void playLetter()} aria-label="Play the letter name">
           <SpeakerIcon />
           <span>{heard ? "Hear it again" : "Tap to hear"}</span>
         </button>
-        <button className="coin-purse" type="button" onClick={() => { setShopMessage(null); setShopOpen(true); }} aria-label={`${state?.coins ?? 10} coins, open prize shop`}><CoinIcon /><strong>{state?.coins ?? 10}</strong><small>SHOP</small></button>
         <audio ref={fallbackAudioRef} src={SOUNDS[target]} preload="auto" />
-      </header>
-
+      </>}>
       <main className="game-main">
         {audioProblem && <p className="audio-note" role="alert">Sound is blocked. Turn up the phone volume, then tap the red button again.</p>}
         <div className="instruction"><span className="step-dot">1</span><span>Listen</span><span className="step-line"/><span className="step-dot">2</span><span>Draw it</span></div>
@@ -696,7 +682,7 @@ export function App() {
           <button className="next-button" type="button" onClick={nextRound}>Next letter <span aria-hidden="true">→</span></button>}
         {state ? <><TrophyCase owned={state.unlockedTrophies} onOpen={() => { setShopMessage(null); setShopOpen(true); }} /><Scoreboard state={state} onReset={() => reset.mutate()} resetting={reset.isPending} /></> : <div className="stats-loading">{game.isError ? "Progress couldn’t load yet." : "Loading your coins…"}</div>}
       </main>
-    </>}
+    </GameShell>}
 
     {state && <PrizeShop
       state={state}
