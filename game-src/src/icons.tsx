@@ -1,4 +1,4 @@
-export type TrophyId = "star" | "one-up" | "fire-flower" | "tanooki-suit" | "green-pipe" | "gold-crown" | "master-sword" | "hylian-shield" | "heros-cap" | "star-rod" | "cappy" | "yoshi" | "poke-ball" | "blue-shell" | "triforce" | "x-wing" | "poop-emoji" | "starfox-laser";
+import type { TrophyId } from "./api";
 
 export function SpeakerIcon() {
   return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-11 w-11" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M11 5 6.5 8.5H3.2v7h3.3L11 19V5Z" fill="currentColor" stroke="none"/><path d="M15 8.3a5.4 5.4 0 0 1 0 7.4M18 5.5a9.1 9.1 0 0 1 0 13"/></svg>;
