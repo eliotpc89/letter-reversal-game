@@ -4,19 +4,24 @@ import { useAudioClip } from "../kit/useAudioClip";
 import { GameShell } from "../shell/GameShell";
 import type { GameContext, Verdict } from "./types";
 import { RoundResult } from "./RoundResult";
-import { DEFAULT_PAIR, DEFAULT_WORD, PAIRS, PRACTICE_WORDS, WORD_AUDIO, shuffled, type PracticeWord } from "../content/word-bank";
+import { shuffled, type PracticeWord } from "../content/word-bank";
+import { useWordBank } from "../content/ContentContext";
 
 export function PairPickerGame({ state, onBack, onOpenShop, onRecord }: GameContext) {
+  const bank = useWordBank();
   const play = useAudioClip();
   const [mode, setMode] = useState<"pick" | "sort">("pick");
-  const [pairIndex, setPairIndex] = useState(() => Math.floor(Math.random() * PAIRS.length));
-  const pair = PAIRS[pairIndex] ?? DEFAULT_PAIR;
+  const [pairIndex, setPairIndex] = useState(() => Math.floor(Math.random() * bank.PAIRS.length));
+  const pair = bank.PAIRS[pairIndex] ?? bank.DEFAULT_PAIR;
   const [target, setTarget] = useState<string>(() => (pair?.[Math.random() > 0.5 ? 0 : 1] ?? "cot"));
-  const [sortWord, setSortWord] = useState<PracticeWord>(() => PRACTICE_WORDS[Math.floor(Math.random() * PRACTICE_WORDS.length)] ?? DEFAULT_WORD);
+  const [sortWord, setSortWord] = useState<PracticeWord>(() => {
+    const pool = bank.PRACTICE_WORDS;
+    return pool[Math.floor(Math.random() * pool.length)] ?? bank.DEFAULT_WORD;
+  });
   const [verdict, setVerdict] = useState<Verdict>(null);
   const [busy, setBusy] = useState(false);
   const currentWord = mode === "pick" ? target : sortWord.word;
-  const hear = () => { const src = WORD_AUDIO.get(currentWord); if (src) void play(src).catch(() => undefined); };
+  const hear = () => { const src = bank.WORD_AUDIO.get(currentWord); if (src) void play(src).catch(() => undefined); };
   const answer = async (choice: string) => {
     if (busy || verdict) return;
     const right = mode === "pick" ? choice === target : choice === sortWord.vowel;
@@ -25,12 +30,12 @@ export function PairPickerGame({ state, onBack, onOpenShop, onRecord }: GameCont
   };
   const next = () => {
     if (mode === "pick") {
-      const nextIndex = (pairIndex + 1) % PAIRS.length;
-      const nextPair = PAIRS[nextIndex] ?? DEFAULT_PAIR;
+      const nextIndex = (pairIndex + 1) % bank.PAIRS.length;
+      const nextPair = bank.PAIRS[nextIndex] ?? bank.DEFAULT_PAIR;
       setPairIndex(nextIndex);
       setTarget(nextPair?.[Math.random() > 0.5 ? 0 : 1] ?? "cot");
     } else {
-      setSortWord((old) => shuffled(PRACTICE_WORDS.filter((item) => item.word !== old.word))[0] ?? DEFAULT_WORD);
+      setSortWord((old) => shuffled(bank.PRACTICE_WORDS.filter((item) => item.word !== old.word))[0] ?? bank.DEFAULT_WORD);
     }
     setVerdict(null);
   };

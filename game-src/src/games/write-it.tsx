@@ -4,12 +4,17 @@ import { useAudioClip } from "../kit/useAudioClip";
 import { GameShell } from "../shell/GameShell";
 import type { GameContext, Verdict } from "./types";
 import { RoundResult } from "./RoundResult";
-import { DEFAULT_WORD, WRITE_WORDS, shuffled, type PracticeWord } from "../content/word-bank";
+import { shuffled, type PracticeWord } from "../content/word-bank";
+import { useWordBank } from "../content/ContentContext";
 
 export function WriteItGame({ state, onBack, onOpenShop, onRecord }: GameContext) {
+  const wordBank = useWordBank();
   const play = useAudioClip();
-  const [target, setTarget] = useState<PracticeWord>(() => WRITE_WORDS[Math.floor(Math.random() * WRITE_WORDS.length)] ?? DEFAULT_WORD);
-  const [bank, setBank] = useState<string[]>(() => shuffled((WRITE_WORDS[0]?.word ?? "cot").split("")));
+  const [target, setTarget] = useState<PracticeWord>(() => {
+    const pool = wordBank.WRITE_WORDS;
+    return pool[Math.floor(Math.random() * pool.length)] ?? wordBank.DEFAULT_WORD;
+  });
+  const [bank, setBank] = useState<string[]>(() => shuffled((wordBank.WRITE_WORDS[0]?.word ?? "cot").split("")));
   const [selected, setSelected] = useState<number[]>([]);
   const [marked, setMarked] = useState<number | null>(null);
   const [verdict, setVerdict] = useState<Verdict>(null);
@@ -32,7 +37,7 @@ export function WriteItGame({ state, onBack, onOpenShop, onRecord }: GameContext
     setBusy(true);
     try { await onRecord(right); setVerdict(right ? "correct" : "wrong"); } finally { setBusy(false); }
   };
-  const next = () => setTarget((old) => shuffled(WRITE_WORDS.filter((item) => item.word !== old.word))[0] ?? DEFAULT_WORD);
+  const next = () => setTarget((old) => shuffled(wordBank.WRITE_WORDS.filter((item) => item.word !== old.word))[0] ?? wordBank.DEFAULT_WORD);
   return <GameShell variant="practice" eyebrow="Short o + u" title="Write it" coins={state.coins} onBack={onBack} onOpenShop={onOpenShop}>
     <main className="practice-main">
       <section className="practice-stage write-stage" aria-labelledby="write-question">

@@ -4,11 +4,16 @@ import { useAudioClip } from "../kit/useAudioClip";
 import { GameShell } from "../shell/GameShell";
 import type { GameContext, Verdict } from "./types";
 import { RoundResult } from "./RoundResult";
-import { DEFAULT_WORD, SOUND_SORT_WORDS, shuffled, type PracticeWord, type Vowel } from "../content/word-bank";
+import { shuffled, type PracticeWord, type Vowel } from "../content/word-bank";
+import { useWordBank } from "../content/ContentContext";
 
 export function SoundSortGame({ state, onBack, onOpenShop, onRecord }: GameContext) {
+  const bank = useWordBank();
   const play = useAudioClip();
-  const [target, setTarget] = useState<PracticeWord>(() => SOUND_SORT_WORDS[Math.floor(Math.random() * SOUND_SORT_WORDS.length)] ?? DEFAULT_WORD);
+  const [target, setTarget] = useState<PracticeWord>(() => {
+    const pool = bank.SOUND_SORT_WORDS;
+    return pool[Math.floor(Math.random() * pool.length)] ?? bank.DEFAULT_WORD;
+  });
   const [verdict, setVerdict] = useState<Verdict>(null);
   const [busy, setBusy] = useState(false);
   const hear = () => void play(target.audio).catch(() => undefined);
@@ -19,7 +24,7 @@ export function SoundSortGame({ state, onBack, onOpenShop, onRecord }: GameConte
     try { await onRecord(right); setVerdict(right ? "correct" : "wrong"); } finally { setBusy(false); }
   };
   const next = () => {
-    setTarget((old) => shuffled(SOUND_SORT_WORDS.filter((item) => item.word !== old.word))[0] ?? DEFAULT_WORD);
+    setTarget((old) => shuffled(bank.SOUND_SORT_WORDS.filter((item) => item.word !== old.word))[0] ?? bank.DEFAULT_WORD);
     setVerdict(null);
   };
   return <GameShell variant="practice" eyebrow="Short o + u" title="o or u?" coins={state.coins} onBack={onBack} onOpenShop={onOpenShop}>

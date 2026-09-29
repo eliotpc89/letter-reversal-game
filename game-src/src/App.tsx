@@ -9,11 +9,13 @@ import { TROPHIES } from "./platform/trophies";
 import { TrophyCase } from "./platform/TrophyCase";
 import { PrizeShop } from "./platform/PrizeShop";
 import { GAMES, getGame } from "./games/registry";
+import { useContent } from "./content/ContentContext";
 import type { GameContext } from "./games/types";
 
 type GameState = ApiResponse<typeof api, "getGameState">;
 
 function GameMenu({ state, onPlay, onOpenShop }: { state: GameState | undefined; onPlay: (id: string) => void; onOpenShop: () => void }) {
+  const { bank } = useContent();
   const hero = GAMES.find((game) => game.tile === "hero");
   const grid = GAMES.filter((game) => game.tile === "grid");
   const wide = GAMES.filter((game) => game.tile === "wide");
@@ -45,7 +47,7 @@ function GameMenu({ state, onPlay, onOpenShop }: { state: GameState | undefined;
           const stat = state && game.statLine ? game.statLine(state) : undefined;
           return <button className={`practice-tile ${game.tileClass}`} type="button" onClick={() => onPlay(game.id)} aria-label={game.playLabel} key={game.id}>
             <span className="practice-art" aria-hidden="true">{game.art}</span>
-            <span className="practice-copy"><b>{game.name}</b><span>{game.note}</span>{stat && <small>{stat}</small>}</span>
+            <span className="practice-copy"><b>{game.name}</b><span>{game.note?.(bank)}</span>{stat && <small>{stat}</small>}</span>
             <span className="tile-arrow" aria-hidden="true">→</span>
           </button>;
         })}

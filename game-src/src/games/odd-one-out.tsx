@@ -1,20 +1,17 @@
 import { useCallback } from "react";
 import { FallingTapper, type TapTarget, type Wave } from "../engines/FallingTapper";
-import { SHORT_O_WORDS, SHORT_U_WORDS, shuffled } from "../content/word-bank";
+import { useContent, useWordBank } from "../content/ContentContext";
+import { shuffled } from "../content/word-bank";
 import type { GameContext } from "./types";
 
 /**
  * Odd One Out on the FallingTapper engine.
  *
  * Three falling words share a short vowel, one doesn't — bonk the odd one.
- * Content is pure data (two word pools); the mechanic is 100% engine.
- *
- * NOTE (step 5): move ODD_POOLS into content JSON (packs/odd-one-out.json).
+ * Round definitions (which pools oppose) come from the odd-one-out content
+ * pack; the word pools come from the phonics-core pack. The mechanic is
+ * 100% engine.
  */
-const ODD_POOLS = [
-  { match: [...SHORT_O_WORDS], odd: [...SHORT_U_WORDS] },
-  { match: [...SHORT_U_WORDS], odd: [...SHORT_O_WORDS] },
-] as const;
 
 function pick<T>(pool: readonly T[], count: number, exclude: Set<string>): T[] {
   const chosen: T[] = [];
@@ -29,23 +26,23 @@ function pick<T>(pool: readonly T[], count: number, exclude: Set<string>): T[] {
   return chosen;
 }
 
-function makeOddWave(round: number): Wave {
-  const pool = ODD_POOLS[round % ODD_POOLS.length] ?? ODD_POOLS[0]!;
-  const seen = new Set<string>();
-  const matchWords = pick(pool.match, 3, seen);
-  const [oddWord] = pick(pool.odd, 1, seen);
-  const targets: TapTarget[] = shuffled([
-    ...matchWords.map((word, index) => ({ key: `m${round}-${index}`, label: word, good: false })),
-    { key: `odd-${round}`, label: oddWord ?? "up", good: true },
-  ]);
-  return {
-    prompt: "Bonk the word with the different vowel!",
-    targets,
-  };
-}
-
 export function OddOneOutGame({ coins, onBack, onOpenShop, onRecord }: GameContext) {
-  const makeWave = useCallback((round: number): Wave => makeOddWave(round), []);
+  const bank = useWordBank();
+  const { oddOneOut } = useContent();
+
+  const makeWave = useCallback((round: number): Wave => {
+    const spec = oddOneOut.rounds[round % oddOneOut.rounds.length] ?? oddOneOut.rounds[0]!;
+    const matchPool = spec.matchPool === "short-o" ? bank.SHORT_O_WORDS : bank.SHORT_U_WORDS;
+    const oddPool = spec.oddPool === "short-o" ? bank.SHORT_O_WORDS : bank.SHORT_U_WORDS;
+    const seen = new Set<string>();
+    const matchWords = pick(matchPool, 3, seen);
+    const [oddWord] = pick(oddPool, 1, seen);
+    const targets: TapTarget[] = shuffled([
+      ...matchWords.map((word, index) => ({ key: `m${round}-${index}`, label: word, good: false })),
+      { key: `odd-${round}`, label: oddWord ?? "up", good: true },
+    ]);
+    return { prompt: "Bonk the word with the different vowel!", targets };
+  }, [bank, oddOneOut]);
 
   const wrongFeedback = useCallback(
     (_wave: Wave, target: TapTarget) =>

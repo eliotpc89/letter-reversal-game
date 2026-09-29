@@ -1,37 +1,54 @@
 import { VOWEL_AUDIO } from "../assets/vowels";
+
+const VOWEL_CLIPS = VOWEL_AUDIO as Record<string, string>;
 import type { GameState } from "../api";
 import type { PracticeGameId } from "../api";
+import type { PhonicsCorePack } from "./packs";
 
 export type Vowel = "o" | "u";
 export type PracticeWord = { word: string; vowel: Vowel; vowelIndex: number; audio: string };
 
-export const SHORT_O_WORDS = [
-  "cot", "cop", "cob", "cod", "bog", "dog", "hog", "lock", "dock", "sock", "mock", "pop",
-  "not", "rot", "shot", "fond", "hot", "hop", "pot", "top", "mop", "rock", "box", "fox",
-  "dot", "log", "rod", "pond", "drop", "shop", "stop", "clock", "block", "flock", "shock", "stock", "trot", "stomp", "chomp",
-] as const;
-export const SHORT_U_WORDS = [
-  "cut", "cup", "cub", "cud", "bug", "dug", "hug", "luck", "duck", "suck", "muck", "pup",
-  "nut", "rut", "shut", "fund", "hut", "hum", "hub", "pug", "puck", "tub", "tug", "tuck",
-  "mug", "stuck", "truck", "cluck", "buck", "bus", "bud", "run", "rug", "rub", "sun",
-  "fun", "gun", "drum", "plum", "plug", "club", "scrub", "slug", "blush", "brush", "crush", "trust", "trunk", "up",
-] as const;
-export const PRACTICE_WORDS: PracticeWord[] = [
-  ...SHORT_O_WORDS.map((word) => ({ word, vowel: "o" as const, vowelIndex: word.indexOf("o"), audio: VOWEL_AUDIO[word] })),
-  ...SHORT_U_WORDS.map((word) => ({ word, vowel: "u" as const, vowelIndex: word.indexOf("u"), audio: VOWEL_AUDIO[word] })),
-];
-// "up" has no middle vowel, so it doesn't fit sound-sort's "which vowel is in
-// the middle?" prompt. It stays in the other games' pools.
-export const SOUND_SORT_WORDS = PRACTICE_WORDS.filter((item) => item.word !== "up");
-export const WRITE_WORDS = PRACTICE_WORDS.filter((item) => item.word.length <= 4);
-export const WORD_AUDIO = new Map(PRACTICE_WORDS.map((item) => [item.word, item.audio]));
-export const PAIRS = [
-  ["cot", "cut"], ["cop", "cup"], ["cob", "cub"], ["cod", "cud"], ["bog", "bug"],
-  ["dog", "dug"], ["hog", "hug"], ["lock", "luck"], ["dock", "duck"], ["sock", "suck"],
-  ["mock", "muck"], ["pop", "pup"], ["not", "nut"], ["rot", "rut"], ["shot", "shut"], ["fond", "fund"],
-] as const;
-export const DEFAULT_PAIR: readonly [string, string] = ["cot", "cut"];
-export const DEFAULT_WORD: PracticeWord = { word: "cot", vowel: "o", vowelIndex: 1, audio: VOWEL_AUDIO.cot };
+/** Everything the games derive from the phonics-core pack. */
+export type WordBank = {
+  SHORT_O_WORDS: readonly string[];
+  SHORT_U_WORDS: readonly string[];
+  PRACTICE_WORDS: PracticeWord[];
+  /** "up" has no middle vowel, so it doesn't fit sound-sort's prompt. */
+  SOUND_SORT_WORDS: PracticeWord[];
+  WRITE_WORDS: PracticeWord[];
+  WORD_AUDIO: Map<string, string>;
+  PAIRS: readonly (readonly [string, string])[];
+  DEFAULT_PAIR: readonly [string, string];
+  DEFAULT_WORD: PracticeWord;
+};
+
+function toPracticeWord(word: string, vowel: Vowel): PracticeWord {
+  return { word, vowel, vowelIndex: word.indexOf(vowel), audio: VOWEL_CLIPS[word] };
+}
+
+/**
+ * Build the derived word lists from a phonics-core pack. Derivation rules
+ * live here, in code, so every pack gets the same treatment: vowel indexes,
+ * the "up" exclusion for sound-sort, the four-letter cap for write-it.
+ */
+export function buildWordBank(pack: PhonicsCorePack): WordBank {
+  const oWords = pack.shortO.map((word) => toPracticeWord(word, "o"));
+  const uWords = pack.shortU.map((word) => toPracticeWord(word, "u"));
+  const practice = [...oWords, ...uWords];
+  const soundSort = practice.filter((item) => item.word !== "up");
+  const first = oWords[0];
+  return {
+    SHORT_O_WORDS: pack.shortO,
+    SHORT_U_WORDS: pack.shortU,
+    PRACTICE_WORDS: practice,
+    SOUND_SORT_WORDS: soundSort,
+    WRITE_WORDS: practice.filter((item) => item.word.length <= 4),
+    WORD_AUDIO: new Map(practice.map((item) => [item.word, item.audio])),
+    PAIRS: pack.pairs,
+    DEFAULT_PAIR: pack.pairs[0] ?? (["cot", "cut"] as const),
+    DEFAULT_WORD: first ?? { word: "cot", vowel: "o", vowelIndex: 1, audio: VOWEL_CLIPS["cot"] },
+  };
+}
 
 export function shuffled<T>(values: readonly T[]): T[] {
   return [...values].sort(() => Math.random() - 0.5);

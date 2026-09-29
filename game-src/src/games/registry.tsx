@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import type { GameState } from "../api";
-import { practiceStat, SOUND_SORT_WORDS } from "../content/word-bank";
+import { practiceStat } from "../content/word-bank";
 import type { GameContext } from "./types";
+import type { WordBank } from "../content/word-bank";
 import { BedGame } from "./bed";
 import { SoundSortGame } from "./sound-sort";
 import { PairPickerGame } from "./pair-picker";
@@ -23,8 +24,8 @@ export type GameDef = {
   tileClass: string;
   artClass?: string;
   playLabel: string;
-  /** Small note under a grid tile's name. */
-  note?: ReactNode;
+  /** Small note under a grid tile's name (may read the word bank). */
+  note?: (bank: WordBank) => ReactNode;
   /** e.g. "12/20 right" — shown when the player has attempts. */
   statLine?: (state: GameState) => string | undefined;
   render: (ctx: GameContext) => ReactNode;
@@ -63,7 +64,7 @@ export const GAMES: GameDef[] = [
     art: "ŏ  ŭ",
     tileClass: "vowel-tile",
     playLabel: "Play O or U",
-    note: `${SOUND_SORT_WORDS.length} short-vowel words in the mix.`,
+    note: (bank) => `${bank.SOUND_SORT_WORDS.length} short-vowel words in the mix.`,
     statLine: practiceStatLine("sound-sort"),
     render: (ctx) => <SoundSortGame {...ctx} />,
   },
@@ -76,7 +77,7 @@ export const GAMES: GameDef[] = [
     art: "cot · cut",
     tileClass: "pair-tile",
     playLabel: "Play Pair Picker",
-    note: "Listen closely, then sort the word.",
+    note: () => "Listen closely, then sort the word.",
     statLine: practiceStatLine("pair-picker"),
     render: (ctx) => <PairPickerGame {...ctx} />,
   },
@@ -89,7 +90,7 @@ export const GAMES: GameDef[] = [
     art: "mŭck",
     tileClass: "write-tile",
     playLabel: "Play Write It",
-    note: "Build the word and mark the vowel.",
+    note: () => "Build the word and mark the vowel.",
     statLine: practiceStatLine("write-it"),
     render: (ctx) => <WriteItGame {...ctx} />,
   },
