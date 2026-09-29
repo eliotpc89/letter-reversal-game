@@ -6,4 +6,4 @@ import was from "./was.mp3";
 import one from "./one.mp3";
 import said from "./said.mp3";
 
-export const TRICK_AUDIO = { you, your, i, they, was, one, said } as const;
+export const TRICK_AUDIO = { you, your, i, they, was, one, said, } as const;
