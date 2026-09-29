@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { ensureAudioContext } from "./kit/audio";
+import { playDamage, playLaser, playShieldDown } from "./kit/sfx";
 
 type MathProblem = {
   left: number;
@@ -64,64 +66,6 @@ function makeTargets(problem: MathProblem): AnswerTarget[] {
   }));
 }
 
-function createAudioContext(ref: MutableRefObject<AudioContext | null>): AudioContext | null {
-  const AudioCtx = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AudioCtx) return null;
-  const context = ref.current ?? new AudioCtx();
-  ref.current = context;
-  if (context.state === "suspended") void context.resume();
-  return context;
-}
-
-function playLaser(context: AudioContext | null) {
-  if (!context || context.state !== "running") return;
-  const start = context.currentTime;
-  const oscillator = context.createOscillator();
-  const gain = context.createGain();
-  oscillator.type = "square";
-  oscillator.frequency.setValueAtTime(1500, start);
-  oscillator.frequency.exponentialRampToValueAtTime(240, start + 0.18);
-  gain.gain.setValueAtTime(0.0001, start);
-  gain.gain.exponentialRampToValueAtTime(0.13, start + 0.01);
-  gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.2);
-  oscillator.connect(gain).connect(context.destination);
-  oscillator.start(start);
-  oscillator.stop(start + 0.22);
-}
-
-function playDamage(context: AudioContext | null) {
-  if (!context || context.state !== "running") return;
-  const start = context.currentTime;
-  const oscillator = context.createOscillator();
-  const gain = context.createGain();
-  oscillator.type = "sawtooth";
-  oscillator.frequency.setValueAtTime(180, start);
-  oscillator.frequency.exponentialRampToValueAtTime(55, start + 0.38);
-  gain.gain.setValueAtTime(0.0001, start);
-  gain.gain.exponentialRampToValueAtTime(0.16, start + 0.02);
-  gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.4);
-  oscillator.connect(gain).connect(context.destination);
-  oscillator.start(start);
-  oscillator.stop(start + 0.42);
-}
-
-function playShieldDown(context: AudioContext | null) {
-  if (!context || context.state !== "running") return;
-  [130, 98, 65].forEach((frequency, index) => {
-    const start = context.currentTime + index * 0.08;
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    oscillator.type = "triangle";
-    oscillator.frequency.value = frequency;
-    gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(0.11, start + 0.015);
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.18);
-    oscillator.connect(gain).connect(context.destination);
-    oscillator.start(start);
-    oscillator.stop(start + 0.2);
-  });
-}
-
 function Spaceship() {
   return <div className="math-ship" aria-hidden="true">
     <span className="ship-flame" />
@@ -135,7 +79,6 @@ function Spaceship() {
 }
 
 export function MathBlasters({ coins, onBack, onOpenShop, onRecord }: MathBlastersProps) {
-  const audioRef = useRef<AudioContext | null>(null);
   const stageRef = useRef<HTMLElement | null>(null);
   const timerRef = useRef<number | null>(null);
   const lockedRef = useRef(false);
@@ -176,18 +119,23 @@ export function MathBlasters({ coins, onBack, onOpenShop, onRecord }: MathBlaste
     if (lockedRef.current || gameOver) return;
     lockedRef.current = true;
     setBusy(true);
-    if (soundOn) playDamage(createAudioContext(audioRef));
+    if (soundOn) playDamage();
     setFeedback(message);
     const nextShields = Math.max(0, shieldsRef.current - 1);
     shieldsRef.current = nextShields;
     setShields(nextShields);
-    await onRecord(false);
-    if (nextShields === 0) {
-      if (soundOn) playShieldDown(createAudioContext(audioRef));
-      setGameOver(true);
-      setBusy(false);
-    } else {
-      timerRef.current = window.setTimeout(nextRound, 850);
+    try {
+      await onRecord(false);
+    } catch {
+      // The round didn't save; keep playing rather than soft-locking.
+    } finally {
+      if (nextShields === 0) {
+        if (soundOn) playShieldDown();
+        setGameOver(true);
+        setBusy(false);
+      } else {
+        timerRef.current = window.setTimeout(nextRound, 850);
+      }
     }
   }, [gameOver, nextRound, onRecord, soundOn]);
 
@@ -215,17 +163,15 @@ export function MathBlasters({ coins, onBack, onOpenShop, onRecord }: MathBlaste
 
   useEffect(() => () => {
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
-    const context = audioRef.current;
-    if (context && context.state !== "closed") void context.close();
   }, []);
 
   const fire = async (target: AnswerTarget) => {
     if (busy || lockedRef.current || gameOver) return;
-    createAudioContext(audioRef);
+    ensureAudioContext();
     lockedRef.current = true;
     setBusy(true);
     if (target.value === problem.answer) {
-      if (soundOn) playLaser(createAudioContext(audioRef));
+      if (soundOn) playLaser();
       const stage = stageRef.current?.getBoundingClientRect();
       const width = stage?.width ?? 360;
       const height = stage?.height ?? 560;
@@ -235,8 +181,13 @@ export function MathBlasters({ coins, onBack, onOpenShop, onRecord }: MathBlaste
       setTargets((current) => current.map((item) => item.id === target.id ? { ...item, status: "hit" } : item));
       setFeedback("DIRECT HIT! Great blast!");
       setScore((value) => value + 10 + Math.max(0, 5 - round));
-      await onRecord(true);
-      timerRef.current = window.setTimeout(nextRound, 650);
+      try {
+        await onRecord(true);
+      } catch {
+        // The round didn't save; keep playing rather than soft-locking.
+      } finally {
+        timerRef.current = window.setTimeout(nextRound, 650);
+      }
     } else {
       setTargets((current) => current.map((item) => item.id === target.id ? { ...item, status: "wrong" } : item));
       lockedRef.current = false;

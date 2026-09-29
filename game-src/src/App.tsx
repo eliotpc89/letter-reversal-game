@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import { api, encodeSave, type ApiResponse } from "./api";
 import { classifyDrawing, isConfidentMatch, LETTERS, type Letter } from "./draw-classifier";
 import { CoinIcon, GamesIcon, SpeakerIcon, TrophyIcon, type TrophyId } from "./icons";
+import { useAudioClip } from "./kit/useAudioClip";
+import { playJackpot, playWhomp } from "./kit/sfx";
 import bSound from "./assets/letters/b.mp3";
 import dSound from "./assets/letters/d.mp3";
 import pSound from "./assets/letters/p.mp3";
@@ -104,40 +106,6 @@ function clearCanvas(canvas: HTMLCanvasElement | null) {
   ctx?.clearRect(0, 0, canvas.width, canvas.height);
 }
 
-
-function playJackpot(ctx: AudioContext | null) {
-  if (!ctx || ctx.state !== "running") return;
-  const notes = [523.25, 659.25, 783.99, 1046.5, 1318.5];
-  notes.forEach((frequency, index) => {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = index % 2 ? "triangle" : "square";
-    osc.frequency.value = frequency;
-    const start = ctx.currentTime + index * 0.085;
-    gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(0.16, start + 0.015);
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.34);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(start); osc.stop(start + 0.36);
-  });
-}
-
-function playWhomp(ctx: AudioContext | null) {
-  if (!ctx || ctx.state !== "running") return;
-  [0, 0.34].forEach((offset, index) => {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "sawtooth";
-    const start = ctx.currentTime + offset;
-    osc.frequency.setValueAtTime(index === 0 ? 190 : 150, start);
-    osc.frequency.exponentialRampToValueAtTime(index === 0 ? 105 : 76, start + 0.3);
-    gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(0.14, start + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.32);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(start); osc.stop(start + 0.34);
-  });
-}
 
 function TrophyCase({ owned, onOpen }: { owned: TrophyId[]; onOpen: () => void }) {
   return <section className="trophy-case" aria-labelledby="trophy-case-title">
@@ -240,65 +208,6 @@ function GameMenu({ state, onPlay, onOpenShop }: { state: GameState | undefined;
       {state ? <TrophyCase owned={state.unlockedTrophies} onOpen={onOpenShop} /> : <div className="stats-loading">Loading your coins…</div>}
     </main>
   </>;
-}
-
-function useAudioClip() {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const contextRef = useRef<AudioContext | null>(null);
-  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
-  const buffersRef = useRef<Map<string, AudioBuffer>>(new Map());
-
-  useEffect(() => () => {
-    sourceRef.current?.stop();
-    audioRef.current?.pause();
-    const context = contextRef.current;
-    if (context && context.state !== "closed") void context.close();
-  }, []);
-
-  return useCallback(async (src: string) => {
-    const AudioCtx = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (AudioCtx) {
-      try {
-        const context = contextRef.current ?? new AudioCtx();
-        contextRef.current = context;
-        if (context.state === "suspended") await context.resume();
-        if (context.state !== "running") throw new Error("Audio context is not running");
-
-        let buffer = buffersRef.current.get(src);
-        if (!buffer) {
-          const response = await fetch(src, { cache: "force-cache" });
-          if (!response.ok) throw new Error("Audio clip could not be loaded");
-          buffer = await context.decodeAudioData(await response.arrayBuffer());
-          buffersRef.current.set(src, buffer);
-        }
-
-        try { sourceRef.current?.stop(); } catch { /* The previous clip already ended. */ }
-        const source = context.createBufferSource();
-        const gain = context.createGain();
-        const compressor = context.createDynamicsCompressor();
-        gain.gain.value = 1.45;
-        compressor.threshold.value = -18;
-        compressor.knee.value = 12;
-        compressor.ratio.value = 6;
-        source.buffer = buffer;
-        source.connect(gain).connect(compressor).connect(context.destination);
-        source.start();
-        sourceRef.current = source;
-        return;
-      } catch {
-        // Some embedded browsers cannot decode MP3 with Web Audio; use media playback below.
-      }
-    }
-
-    const audio = audioRef.current ?? new Audio();
-    audioRef.current = audio;
-    audio.pause();
-    audio.src = src;
-    audio.preload = "auto";
-    audio.volume = 1;
-    audio.currentTime = 0;
-    await audio.play();
-  }, []);
 }
 
 function PracticeHeader({ title, coins, onBack, onOpenShop }: { title: string; coins: number; onBack: () => void; onOpenShop: () => void }) {
