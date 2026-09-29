@@ -12,6 +12,9 @@ export const GAME_IDS: string[] = [
   "write-it",
   "odd-one-out",
   "math-blasters",
+  "sound-blaster",
+  "bonus-blaster",
+  "trick-words",
 ];
 
 /** Game ids that earn practice stats (everything but the bed drawing game). */

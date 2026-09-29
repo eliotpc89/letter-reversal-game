@@ -1,3 +1,8 @@
+// Local persistence layer for the GitHub Pages build.
+//
+// Same action surface the hosted arcade exposes through its server actions,
+// but the game state lives in the browser's localStorage instead of SQLite,
+// so coins, trophies, and scores persist on the device with no login and no
 // backend. All functions are async to match the original RPC signatures.
 
 // Practice-stat game ids live in the leaf ids module (no import cycle:
@@ -23,30 +28,35 @@ export type TrophyId =
   | "triforce"
   | "x-wing"
   | "poop-emoji"
-  | "starfox-laser";
+  | "starfox-laser"
+  | "cosmic-compass"
+  | "moon-medal";
 export type PracticeGameId = string;
+export type Vowel = "o" | "u";
 
 const LETTERS: Letter[] = ["b", "d", "p", "q", "n", "u", "c", "k"];
 const PRACTICE_GAMES: PracticeGameId[] = PRACTICE_GAME_IDS;
 const TROPHY_PRICES: Record<TrophyId, number> = {
-  star: 15,
-  "one-up": 30,
-  "fire-flower": 50,
-  "tanooki-suit": 75,
-  "green-pipe": 100,
-  "gold-crown": 150,
-  "master-sword": 200,
-  "hylian-shield": 250,
-  "heros-cap": 300,
-  "star-rod": 350,
-  cappy: 400,
-  yoshi: 450,
-  "poke-ball": 500,
-  "blue-shell": 600,
-  triforce: 750,
-  "x-wing": 900,
-  "poop-emoji": 1200,
-  "starfox-laser": 9999,
+  star: 1000,
+  "one-up": 1100,
+  "fire-flower": 1200,
+  "tanooki-suit": 1300,
+  "green-pipe": 1400,
+  "gold-crown": 1500,
+  "master-sword": 1600,
+  "hylian-shield": 1700,
+  "heros-cap": 1800,
+  "star-rod": 1900,
+  cappy: 2000,
+  yoshi: 2100,
+  "poke-ball": 2200,
+  "blue-shell": 2300,
+  triforce: 2400,
+  "x-wing": 2500,
+  "poop-emoji": 2600,
+  "starfox-laser": 800,
+  "cosmic-compass": 2800,
+  "moon-medal": 2900,
 };
 
 export interface TrackedLetter {
@@ -61,6 +71,14 @@ export interface PracticeStat {
   correct: number;
 }
 
+export interface WordStat {
+  word: string;
+  vowel: Vowel;
+  attempts: number;
+  correct: number;
+  misses: number;
+}
+
 export interface GameState {
   coins: number;
   totalEarned: number;
@@ -71,6 +89,7 @@ export interface GameState {
   bestStreak: number;
   letters: TrackedLetter[];
   practiceStats: PracticeStat[];
+  wordStats: WordStat[];
   unlockedTrophies: TrophyId[];
 }
 
@@ -94,6 +113,7 @@ function defaultState(): GameState {
     bestStreak: 0,
     letters: LETTERS.map((letter) => ({ letter, attempts: 0, correct: 0 })),
     practiceStats: PRACTICE_GAMES.map((gameId) => ({ gameId, attempts: 0, correct: 0 })),
+    wordStats: [],
     unlockedTrophies: [],
   };
 }
@@ -120,6 +140,18 @@ function sanitizeState(parsed: unknown): GameState | null {
   const byGame = new Map(
     parsed.practiceStats.map((row: PracticeStat) => [row.gameId, row]),
   );
+  const wordStats = Array.isArray(parsed.wordStats)
+    ? parsed.wordStats.flatMap((row: WordStat) => {
+        if (typeof row?.word !== "string" || !/^[a-z]+$/.test(row.word) || (row.vowel !== "o" && row.vowel !== "u")) return [];
+        return [{
+          word: row.word,
+          vowel: row.vowel,
+          attempts: typeof row.attempts === "number" ? Math.max(0, row.attempts) : 0,
+          correct: typeof row.correct === "number" ? Math.max(0, row.correct) : 0,
+          misses: typeof row.misses === "number" ? Math.max(0, row.misses) : 0,
+        }];
+      })
+    : [];
   return {
     ...fresh,
     ...parsed,
@@ -139,6 +171,7 @@ function sanitizeState(parsed: unknown): GameState | null {
         correct: typeof saved?.correct === "number" ? saved.correct : 0,
       };
     }),
+    wordStats,
     unlockedTrophies: parsed.unlockedTrophies.filter(
       (id): id is TrophyId => typeof id === "string" && id in TROPHY_PRICES,
     ),
@@ -166,15 +199,29 @@ function fromBase64Url(code: string): string {
   return decodeURIComponent(escape(atob(s)));
 }
 
-/** Serialize a save into a short URL-safe code for device-to-device transfer. */
+export type SharedProgress = Pick<GameState, "coins" | "unlockedTrophies">;
+
+/** Serialize only coins and trophies into a short URL-safe transfer code. */
 export function encodeSave(state: GameState): string {
-  return toBase64Url(JSON.stringify(state));
+  return toBase64Url(JSON.stringify({
+    version: 2,
+    coins: Math.max(0, Math.floor(state.coins)),
+    unlockedTrophies: [...new Set(state.unlockedTrophies)],
+  }));
 }
 
-/** Parse a transferred save code; returns null when the code is invalid. */
-export function decodeSave(code: string): GameState | null {
+/** Parse a coins-and-trophies transfer code; returns null when invalid. */
+export function decodeSave(code: string): SharedProgress | null {
   try {
-    return sanitizeState(JSON.parse(fromBase64Url(code)));
+    const parsed = JSON.parse(fromBase64Url(code)) as Record<string, unknown>;
+    if (typeof parsed.coins !== "number" || !Array.isArray(parsed.unlockedTrophies)) return null;
+    const unlockedTrophies = parsed.unlockedTrophies.filter(
+      (id): id is TrophyId => typeof id === "string" && id in TROPHY_PRICES,
+    );
+    return {
+      coins: Math.max(0, Math.floor(parsed.coins)),
+      unlockedTrophies: [...new Set(unlockedTrophies)],
+    };
   } catch {
     return null;
   }
@@ -193,6 +240,7 @@ async function recordAttemptInner(
   kind: "letter" | "practice",
   id: Letter | PracticeGameId,
   correct: boolean,
+  word?: { word: string; vowel: Vowel },
 ): Promise<{ coinsChanged: number; state: GameState }> {
   const before = loadState();
   const reward = kind === "letter" ? 5 : 3;
@@ -232,6 +280,15 @@ async function recordAttemptInner(
               : row,
           )
         : before.practiceStats,
+    wordStats: word
+      ? (() => {
+          const existing = before.wordStats.find((row) => row.word === word.word);
+          const nextRow: WordStat = existing
+            ? { ...existing, attempts: existing.attempts + 1, correct: existing.correct + (correct ? 1 : 0), misses: existing.misses + (correct ? 0 : 1) }
+            : { word: word.word, vowel: word.vowel, attempts: 1, correct: correct ? 1 : 0, misses: correct ? 0 : 1 };
+          return existing ? before.wordStats.map((row) => row.word === word.word ? nextRow : row) : [...before.wordStats, nextRow];
+        })()
+      : before.wordStats,
   };
   saveState(next);
   return { coinsChanged, state: next };
@@ -252,8 +309,9 @@ export const api = {
   async recordPracticeAttempt(args: {
     gameId: PracticeGameId;
     correct: boolean;
+    word?: { word: string; vowel: Vowel };
   }): Promise<{ coinsChanged: number; state: GameState }> {
-    return recordAttemptInner("practice", args.gameId, args.correct);
+    return recordAttemptInner("practice", args.gameId, args.correct, args.word);
   },
 
   async unlockTrophy(args: { trophyId: TrophyId }): Promise<{
@@ -283,12 +341,20 @@ export const api = {
     return next;
   },
 
+  async resetMissedWords(_args: Record<string, never>): Promise<GameState> {
+    const before = loadState();
+    const next = { ...before, wordStats: [] };
+    saveState(next);
+    return next;
+  },
+
   async importSave(args: { code: string }): Promise<{
     ok: boolean;
     state: GameState;
   }> {
-    const next = decodeSave(args.code);
-    if (!next) return { ok: false, state: loadState() };
+    const imported = decodeSave(args.code);
+    if (!imported) return { ok: false, state: loadState() };
+    const next = { ...loadState(), ...imported };
     saveState(next);
     return { ok: true, state: next };
   },
