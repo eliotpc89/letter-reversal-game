@@ -1,8 +1,8 @@
 // backend. All functions are async to match the original RPC signatures.
 
-// Derived from the game registry so adding a game never touches this file.
-// (The registry only uses api types, so this direction has no runtime cycle.)
-import { PRACTICE_GAME_IDS } from "./games/registry";
+// Practice-stat game ids live in the leaf ids module (no import cycle:
+// the component registry depends on it too).
+import { PRACTICE_GAME_IDS } from "./games/ids";
 
 export type Letter = "b" | "d" | "p" | "q" | "n" | "u" | "c" | "k";
 export type TrophyId =

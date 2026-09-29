@@ -3,6 +3,9 @@ import type { GameState } from "../api";
 import { practiceStat } from "../content/word-bank";
 import type { GameContext } from "./types";
 import type { WordBank } from "../content/word-bank";
+import { GAME_IDS } from "./ids";
+
+export { GAME_IDS, PRACTICE_GAME_IDS } from "./ids";
 import { BedGame } from "./bed";
 import { SoundSortGame } from "./sound-sort";
 import { PairPickerGame } from "./pair-picker";
@@ -122,8 +125,16 @@ export const GAMES: GameDef[] = [
   },
 ];
 
-/** Game ids that earn practice stats (everything but the bed drawing game). */
-export const PRACTICE_GAME_IDS: string[] = GAMES.filter((game) => game.id !== "bed").map((game) => game.id);
+// Fail fast if the registry and the canonical id list disagree.
+{
+  const registered = new Set(GAMES.map((game) => game.id));
+  for (const id of GAME_IDS) {
+    if (!registered.has(id)) throw new Error(`game id "${id}" is in GAME_IDS but has no registry entry`);
+  }
+  for (const id of registered) {
+    if (!GAME_IDS.includes(id)) throw new Error(`registry game "${id}" is missing from GAME_IDS`);
+  }
+}
 
 export function getGame(id: string): GameDef | undefined {
   return GAMES.find((game) => game.id === id);
