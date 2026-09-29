@@ -99,8 +99,8 @@ export function TrickWordSpelling({ coins, words, onBack, onOpenShop, onRecord }
         <p className="round-count">Question {Math.min(questionIndex + 1, words.length)} of {words.length} · Listen · type · check</p>
         <h1 id="trick-question">Spell the trick word.</h1>
         <button className="listen-orb trick-listen" type="button" onClick={() => void playWord(target.audio).catch(() => undefined)} aria-label="Hear the trick word"><span className="trick-speaker" aria-hidden="true">🔊</span><span>Listen again</span></button>
-        <div className="typing-word" aria-label={`Typed word: ${entered || "empty"}`}>
-          {Array.from({ length: target.word.length }, (_, index) => <span key={index} className={entered[index] ? "filled" : ""}>{entered[index] ?? ""}</span>)}
+        <div className="typing-word" aria-label={`Typed letters: ${entered || "none"}`}>
+          {entered.split("").map((letter, index) => <span key={index} className="filled">{letter}</span>)}
         </div>
         <p className="typing-feedback" role="status">{feedback}</p>
         <div className="typing-keyboard" aria-label="On-screen spelling keyboard">
