@@ -8,6 +8,7 @@ import { playJackpot, playWhomp } from "./kit/sfx";
 import { TROPHIES } from "./platform/trophies";
 import { TrophyCase } from "./platform/TrophyCase";
 import { PrizeShop } from "./platform/PrizeShop";
+import { GrownUpTransferPanel } from "./platform/DeviceTransfer";
 import { GAMES, getGame } from "./games/registry";
 import { useContent } from "./content/ContentContext";
 import type { GameContext } from "./games/types";
@@ -88,6 +89,7 @@ function GameMenu({ state, onPlay, onOpenShop, onResetMissed, resettingMissed, o
       <MissedNumbersReview state={state} onFocus={() => onPlay("math-blasters", true)} onReset={onResetMissedNumbers} resetting={resettingMissedNumbers} />
 
       {state ? <TrophyCase owned={state.unlockedTrophies} onOpen={onOpenShop} /> : <div className="stats-loading">Loading your coins…</div>}
+      {state ? <GrownUpTransferPanel state={state} /> : null}
     </main>
   </>;
 }
