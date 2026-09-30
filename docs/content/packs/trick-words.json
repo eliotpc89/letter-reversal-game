@@ -1,1 +1,177 @@
-{"id":"trick-words","packs":[{"id":"unit-4","label":"Unit 4","words":["you","your","i","they","was","one","said"]}],"version":2}
+{
+    "id": "trick-words",
+    "packs": [
+        {
+            "id": "unit-2",
+            "label": "Unit 2",
+            "words": [
+                "the",
+                "a",
+                "and",
+                "is",
+                "his",
+                "of"
+            ]
+        },
+        {
+            "id": "unit-3",
+            "label": "Unit 3",
+            "words": [
+                "as",
+                "has",
+                "to",
+                "into",
+                "we",
+                "he",
+                "she",
+                "be",
+                "me",
+                "for",
+                "or"
+            ]
+        },
+        {
+            "id": "unit-4",
+            "label": "Unit 4",
+            "words": [
+                "you",
+                "your",
+                "i",
+                "they",
+                "was",
+                "one",
+                "said"
+            ]
+        },
+        {
+            "id": "unit-5",
+            "label": "Unit 5",
+            "words": [
+                "from",
+                "have",
+                "do",
+                "does"
+            ]
+        },
+        {
+            "id": "unit-6",
+            "label": "Unit 6",
+            "words": [
+                "were",
+                "are",
+                "who",
+                "what",
+                "when",
+                "where",
+                "there",
+                "here"
+            ]
+        },
+        {
+            "id": "unit-7",
+            "label": "Unit 7",
+            "words": [
+                "why",
+                "by",
+                "my",
+                "try",
+                "put",
+                "two",
+                "too",
+                "very",
+                "also",
+                "some",
+                "come"
+            ]
+        },
+        {
+            "id": "unit-8",
+            "label": "Unit 8",
+            "words": [
+                "would",
+                "could",
+                "should",
+                "her",
+                "over",
+                "number"
+            ]
+        },
+        {
+            "id": "unit-9",
+            "label": "Unit 9",
+            "words": [
+                "say",
+                "says",
+                "see",
+                "between",
+                "each"
+            ]
+        },
+        {
+            "id": "unit-10",
+            "label": "Unit 10",
+            "words": [
+                "any",
+                "many",
+                "how",
+                "now",
+                "down",
+                "out",
+                "about",
+                "our"
+            ]
+        },
+        {
+            "id": "unit-11",
+            "label": "Unit 11",
+            "words": [
+                "friend",
+                "other",
+                "another",
+                "none",
+                "nothing"
+            ]
+        },
+        {
+            "id": "unit-12",
+            "label": "Unit 12",
+            "words": [
+                "people",
+                "month",
+                "little",
+                "been",
+                "own",
+                "want",
+                "mr",
+                "mrs"
+            ]
+        },
+        {
+            "id": "unit-13",
+            "label": "Unit 13",
+            "words": [
+                "work",
+                "word",
+                "write",
+                "being",
+                "their",
+                "first",
+                "look",
+                "good",
+                "new"
+            ]
+        },
+        {
+            "id": "unit-14",
+            "label": "Unit 14",
+            "words": [
+                "water",
+                "called",
+                "day",
+                "may",
+                "way"
+            ]
+        }
+    ],
+    "version": 3
+}

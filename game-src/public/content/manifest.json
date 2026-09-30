@@ -1,5 +1,5 @@
 {
-  "version": 5,
+  "version": 6,
   "packs": [
     {
       "id": "phonics-core",
@@ -14,7 +14,7 @@
     {
       "id": "trick-words",
       "file": "trick-words.json",
-      "version": 1
+      "version": 3
     },
     {
       "id": "bonus-words",
