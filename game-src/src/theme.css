@@ -322,6 +322,7 @@ button { font: inherit; }
 .trophy-shelf::after { content: ""; position: absolute; left: 4px; right: 4px; bottom: 7px; height: 4px; background: var(--text); border-radius: 99px; }
 .case-slot { min-width: 0; aspect-ratio: .84; padding: 3px; border: 0; background: transparent; color: var(--text); cursor: pointer; }
 .mini-trophy { width: 100%; height: 100%; display: grid; place-items: center; }
+.trophy-svg { display: contents; }
 .mini-trophy svg { display: block; width: 100%; max-width: 48px; height: auto; filter: drop-shadow(0 2px 0 rgba(20,33,61,.15)); }
 .case-slot.locked { opacity: .3; }
 .lock-shape { width: 30px; height: 34px; display: grid; place-items: center; border: 3px dashed var(--text); border-radius: 50% 50% 9px 9px; font-size: 18px; font-weight: 950; }
@@ -485,6 +486,11 @@ button { font: inherit; }
 .import-note { margin: 12px 12px 0; padding: 10px 14px; border-radius: 12px; background: var(--surface); border: 2px solid var(--border); font-size: 13px; font-weight: 700; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
 .import-note button { border: 0; background: transparent; text-decoration: underline; font-weight: 800; color: var(--text); min-height: 44px; }
 .share-note { margin: 10px 0 0; font-size: 13px; color: var(--dim); }
+.share-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+.qr-panel { margin-top: 10px; padding: 10px; border: 2px dashed var(--line); border-radius: 12px; display: grid; gap: 8px; justify-items: center; text-align: center; }
+.qr-panel canvas { background: #fff; border-radius: 8px; }
+.qr-video { width: 100%; max-width: 320px; border-radius: 8px; background: #000; }
+.qr-panel input[type="text"] { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 8px; border: 2px solid var(--line); font-size: 14px; }
 .share-link { display: inline-block; margin-top: 8px; color: var(--blue); font-size: 13px; font-weight: 850; text-decoration: underline; }
 
 /* Math Blasters */
@@ -545,12 +551,12 @@ button { font: inherit; }
 .answer-target.hit { animation: answer-hit .58s ease both; pointer-events: none; }
 .answer-target.wrong { animation: answer-wrong .65s ease both; filter: saturate(.55) hue-rotate(285deg); }
 .answer-target.missed { opacity: .2; }
-.math-laser { position: absolute; z-index: 7; left: 50%; top: 86%; width: 52px; height: 9px; transform-origin: center; transform: translate(-50%, -50%) rotate(var(--shot-angle)) translateX(0) scaleX(.35); border-radius: 999px; background: linear-gradient(90deg, transparent 0%, #35eaff 20%, #fff 52%, #35eaff 84%, transparent 100%); box-shadow: 0 0 5px 2px #fff, 0 0 13px 4px rgba(53,234,255,.95); animation: laser-shot .48s cubic-bezier(.18,.78,.25,1) both; pointer-events: none; }
+.math-laser { position: absolute; z-index: 7; left: 50%; top: 86%; width: calc(52px * (1 + var(--power, 0) * .6)); height: calc(9px * (1 + var(--power, 0) * .7)); transform-origin: center; transform: translate(-50%, -50%) rotate(var(--shot-angle)) translateX(0) scaleX(.35); border-radius: 999px; background: linear-gradient(90deg, transparent 0%, #35eaff 20%, #fff 52%, #35eaff 84%, transparent 100%); box-shadow: 0 0 5px 2px #fff, 0 0 13px 4px rgba(53,234,255,.95); animation: laser-shot .48s cubic-bezier(.18,.78,.25,1) both; pointer-events: none; }
 .math-laser::after { content: ""; position: absolute; right: -2px; top: 50%; width: 12px; height: 12px; transform: translateY(-50%); border-radius: 50%; background: #fff; box-shadow: 0 0 8px 4px #35eaff; }
 .ship-deck { position: absolute; z-index: 3; left: 50%; bottom: 2%; width: 128px; height: 110px; transform: translateX(-50%); }
 .math-ship { position: relative; width: 100%; height: 100%; filter: drop-shadow(0 0 10px rgba(57,223,255,.65)); animation: ship-hover 1.7s ease-in-out infinite; }
 .math-ship svg { position: absolute; inset: 8px 0 0; width: 100%; height: 86px; }
-.ship-flame { position: absolute; left: 50%; bottom: 0; width: 22px; height: 38px; transform: translateX(-50%); border-radius: 50% 50% 65% 65%; background: linear-gradient(#fff, #ffda4d 34%, #ff743f 65%, transparent); filter: drop-shadow(0 0 8px #ff743f); animation: flame-flicker .19s ease-in-out infinite alternate; }
+.ship-flame { position: absolute; left: 50%; bottom: 0; width: calc(22px * (1 + var(--power, 0) * .5)); height: calc(38px * (1 + var(--power, 0) * .5)); transform: translateX(-50%); border-radius: 50% 50% 65% 65%; background: linear-gradient(#fff, #ffda4d 34%, #ff743f 65%, transparent); filter: drop-shadow(0 0 8px #ff743f); animation: flame-flicker .19s ease-in-out infinite alternate; }
 .math-game-over { position: absolute; z-index: 10; inset: 22% 12% 22%; padding: 22px 16px; border: 4px solid #ff5a5f; border-radius: 18px 26px 15px 22px; background: rgba(10, 16, 39, .94); color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; box-shadow: 0 0 30px rgba(255,90,95,.45); }
 .math-game-over strong { color: #ff6d72; font-family: "Avenir Next Rounded", "Trebuchet MS", sans-serif; font-size: clamp(30px, 9vw, 48px); text-shadow: 0 3px 0 #441b2a; }
 .math-game-over span { font-size: 17px; font-weight: 850; }

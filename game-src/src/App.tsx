@@ -22,7 +22,15 @@ function MissedWordsReview({ state, onFocus, onReset, resetting }: { state: Game
   </section>;
 }
 
-function GameMenu({ state, onPlay, onOpenShop, onResetMissed, resettingMissed }: { state: GameState | undefined; onPlay: (id: string, focusMissed?: boolean) => void; onOpenShop: () => void; onResetMissed: () => void; resettingMissed: boolean }) {
+function MissedNumbersReview({ state, onFocus, onReset, resetting }: { state: GameState | undefined; onFocus: () => void; onReset: () => void; resetting: boolean }) {
+  const missed = [...(state?.mathStats ?? [])].filter((row) => row.misses > 0).sort((a, b) => b.misses - a.misses || a.problem.localeCompare(b.problem));
+  return <section className="missed-review" aria-labelledby="missed-numbers-title">
+    <div className="missed-review-topline"><div><h2 id="missed-numbers-title">Missed numbers</h2><p>{missed.length ? "Problems that need another pass." : "Missed math problems will show up here as Miles plays."}</p></div><div className="missed-review-actions">{missed.length > 0 && <button type="button" onClick={onFocus}>Focus these</button>}<button type="button" onClick={onReset} disabled={missed.length === 0 || resetting}>{resetting ? "Resetting…" : "Reset missed numbers"}</button></div></div>
+    {missed.length > 0 && <div className="missed-word-list">{missed.slice(0, 12).map((row) => <span key={row.problem} className="missed-word-chip"><b>{row.problem}</b><small>{row.misses} miss{row.misses === 1 ? "" : "es"}</small></span>)}</div>}
+  </section>;
+}
+
+function GameMenu({ state, onPlay, onOpenShop, onResetMissed, resettingMissed, onResetMissedNumbers, resettingMissedNumbers }: { state: GameState | undefined; onPlay: (id: string, focusMissed?: boolean) => void; onOpenShop: () => void; onResetMissed: () => void; resettingMissed: boolean; onResetMissedNumbers: () => void; resettingMissedNumbers: boolean }) {
   const { bank } = useContent();
   const hero = GAMES.find((game) => game.tile === "hero");
   const grid = GAMES.filter((game) => game.tile === "grid");
@@ -77,6 +85,7 @@ function GameMenu({ state, onPlay, onOpenShop, onResetMissed, resettingMissed }:
       </section>
 
       <MissedWordsReview state={state} onFocus={() => onPlay("sound-blaster", true)} onReset={onResetMissed} resetting={resettingMissed} />
+      <MissedNumbersReview state={state} onFocus={() => onPlay("math-blasters", true)} onReset={onResetMissedNumbers} resetting={resettingMissedNumbers} />
 
       {state ? <TrophyCase owned={state.unlockedTrophies} onOpen={onOpenShop} /> : <div className="stats-loading">Loading your coins…</div>}
     </main>
@@ -117,7 +126,7 @@ export function App() {
   });
 
   const practice = useMutation({
-    mutationFn: (entry: { gameId: PracticeGameId; correct: boolean; word?: { word: string; vowel: Vowel } }) => api.recordPracticeAttempt(entry),
+    mutationFn: (entry: { gameId: PracticeGameId; correct: boolean; word?: { word: string; vowel: Vowel }; problem?: string }) => api.recordPracticeAttempt(entry),
     onSuccess: (result, entry) => {
       queryClient.setQueryData(["game-state"], result.state);
       celebrate(entry.correct);
@@ -126,6 +135,11 @@ export function App() {
 
   const resetMissedWords = useMutation({
     mutationFn: () => api.resetMissedWords({}),
+    onSuccess: (next) => queryClient.setQueryData(["game-state"], next),
+  });
+
+  const resetMissedNumbers = useMutation({
+    mutationFn: () => api.resetMissedNumbers({}),
     onSuccess: (next) => queryClient.setQueryData(["game-state"], next),
   });
 
@@ -153,9 +167,11 @@ export function App() {
 
   const openShop = useCallback(() => { setShopMessage(null); setShopOpen(true); }, []);
 
-  const savePractice = useCallback(async (gameId: string, correct: boolean, word?: { word: string; vowel: Vowel }) => {
+  const savePractice = useCallback(async (gameId: string, correct: boolean, detail?: { word: string; vowel: Vowel } | { problem: string }) => {
     ensureAudioContext();
-    await practice.mutateAsync({ gameId, correct, word });
+    const word = detail && "word" in detail ? { word: detail.word, vowel: detail.vowel } : undefined;
+    const problem = detail && "problem" in detail ? detail.problem : undefined;
+    await practice.mutateAsync({ gameId, correct, word, problem });
   }, [practice]);
 
   const recordLetter = useCallback(async (target: Letter, correct: boolean) => {
@@ -197,7 +213,7 @@ export function App() {
     coins: state.coins,
     onBack: () => setView("menu"),
     onOpenShop: openShop,
-    onRecord: (correct, word) => savePractice(gameDef.id, correct, word),
+    onRecord: (correct, detail) => savePractice(gameDef.id, correct, detail),
     recordLetter,
     onReset: () => reset.mutate(),
     resetting: reset.isPending,
@@ -220,6 +236,8 @@ export function App() {
       onOpenShop={openShop}
       onResetMissed={() => resetMissedWords.mutate()}
       resettingMissed={resetMissedWords.isPending}
+      onResetMissedNumbers={() => resetMissedNumbers.mutate()}
+      resettingMissedNumbers={resetMissedNumbers.isPending}
     />}
 
     {gameDef && (ctx

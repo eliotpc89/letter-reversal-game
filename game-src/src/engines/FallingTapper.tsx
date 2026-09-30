@@ -58,6 +58,12 @@ export type FallingTapperProps = {
   repairLabel?: string;
   onCorrect: () => Promise<void>;
   onWrong: () => Promise<void>;
+  /**
+   * When true, each consecutive correct answer grows the ship's flame and
+   * the laser a little, up to a cap at 20 straight hits. Any damage resets
+   * the growth. (Math Blasters: true.)
+   */
+  powerStreak?: boolean;
 };
 
 function shuffled<T>(values: readonly T[]): T[] {
@@ -102,7 +108,7 @@ export function FallingTapper(props: FallingTapperProps) {
     wrongFeedback, breachFeedback, makeWave, speedForRound, scoreForRound,
     onlyGoodBreachesHurt, startLives = 3, controlsNote,
     gameOverTitle = "SHIP DOWN!", repairLabel = "Repair and play again",
-    onCorrect, onWrong,
+    onCorrect, onWrong, powerStreak = false,
   } = props;
   const targetAriaLabel = props.targetAriaLabel ?? ((target) => `Target ${target.label}`);
 
@@ -124,6 +130,8 @@ export function FallingTapper(props: FallingTapperProps) {
   const [score, setScore] = useState(0);
   const [feedback, setFeedback] = useState(introFeedback);
   const [laser, setLaser] = useState<Laser | null>(null);
+  const [hitStreak, setHitStreak] = useState(0);
+  const power = powerStreak ? Math.min(hitStreak, 20) / 20 : 0;
   const [gameOver, setGameOver] = useState(false);
   const [busy, setBusy] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
@@ -170,6 +178,7 @@ export function FallingTapper(props: FallingTapperProps) {
     setBusy(true);
     if (soundOn) playDamage();
     setFeedback(message);
+    setHitStreak(0);
     const nextLives = Math.max(0, livesRef.current - 1);
     livesRef.current = nextLives;
     setLives(nextLives);
@@ -241,6 +250,7 @@ export function FallingTapper(props: FallingTapperProps) {
       setLaser({ id: Date.now(), angle: Math.atan2(dy, dx), distance: Math.hypot(dx, dy) });
       setTargets((current) => current.map((item) => item.key === target.key ? { ...item, status: "hit" } : item));
       setFeedback(hitFeedback);
+      setHitStreak((value) => Math.min(value + 1, 20));
       setScore((value) => value + scoreForRound(round));
       try {
         await onCorrect();
@@ -275,6 +285,7 @@ export function FallingTapper(props: FallingTapperProps) {
     setScore(0);
     setFeedback(introFeedback);
     setLaser(null);
+    setHitStreak(0);
     setGameOver(false);
     setBusy(false);
     setPaused(false);
@@ -299,7 +310,7 @@ export function FallingTapper(props: FallingTapperProps) {
     fullscreenClass={shell.fullscreenClass}
   >
     <main className="math-main">
-      <section ref={stageRef} className="math-stage" aria-labelledby="tap-prompt">
+      <section ref={stageRef} className="math-stage" aria-labelledby="tap-prompt" style={{ "--power": power } as CSSProperties}>
         <div className="math-stars" aria-hidden="true" />
         <div className="math-prompt"><span>{promptKicker}</span><h1 id="tap-prompt">{wave.prompt}</h1><p>{feedback}</p></div>
         {targets.map((target) => <button

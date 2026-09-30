@@ -8,56 +8,23 @@
 // Practice-stat game ids live in the leaf ids module (no import cycle:
 // the component registry depends on it too).
 import { PRACTICE_GAME_IDS } from "./games/ids";
+// Trophy artwork and catalog live in data files under platform/ so new
+// trophies are a JSON row + an SVG string — no code edits to prices.
+import { TROPHY_ICONS } from "./platform/trophy-icons";
+import trophyCatalogJson from "./platform/trophy-catalog.json";
 
 export type Letter = "b" | "d" | "p" | "q" | "n" | "u" | "c" | "k";
-export type TrophyId =
-  | "star"
-  | "one-up"
-  | "fire-flower"
-  | "tanooki-suit"
-  | "green-pipe"
-  | "gold-crown"
-  | "master-sword"
-  | "hylian-shield"
-  | "heros-cap"
-  | "star-rod"
-  | "cappy"
-  | "yoshi"
-  | "poke-ball"
-  | "blue-shell"
-  | "triforce"
-  | "x-wing"
-  | "poop-emoji"
-  | "starfox-laser"
-  | "cosmic-compass"
-  | "moon-medal";
+/** Every trophy id with artwork in trophy-icons.ts. */
+export type TrophyId = keyof typeof TROPHY_ICONS;
 export type PracticeGameId = string;
 export type Vowel = "o" | "u";
 
 const LETTERS: Letter[] = ["b", "d", "p", "q", "n", "u", "c", "k"];
 const PRACTICE_GAMES: PracticeGameId[] = PRACTICE_GAME_IDS;
-const TROPHY_PRICES: Record<TrophyId, number> = {
-  star: 1000,
-  "one-up": 1100,
-  "fire-flower": 1200,
-  "tanooki-suit": 1300,
-  "green-pipe": 1400,
-  "gold-crown": 1500,
-  "master-sword": 1600,
-  "hylian-shield": 1700,
-  "heros-cap": 1800,
-  "star-rod": 1900,
-  cappy: 2000,
-  yoshi: 2100,
-  "poke-ball": 2200,
-  "blue-shell": 2300,
-  triforce: 2400,
-  "x-wing": 2500,
-  "poop-emoji": 2600,
-  "starfox-laser": 800,
-  "cosmic-compass": 2800,
-  "moon-medal": 2900,
-};
+/** Prices come from trophy-catalog.json; ids stay valid via the TrophyId union. */
+const TROPHY_PRICES: Record<TrophyId, number> = Object.fromEntries(
+  (trophyCatalogJson as { id: TrophyId; price: number }[]).map((row) => [row.id, row.price]),
+) as Record<TrophyId, number>;
 
 export interface TrackedLetter {
   letter: Letter;
@@ -79,6 +46,14 @@ export interface WordStat {
   misses: number;
 }
 
+export interface MathStat {
+  /** e.g. "7 + 8" or "12 \u2212 4" */
+  problem: string;
+  attempts: number;
+  correct: number;
+  misses: number;
+}
+
 export interface GameState {
   coins: number;
   totalEarned: number;
@@ -90,6 +65,7 @@ export interface GameState {
   letters: TrackedLetter[];
   practiceStats: PracticeStat[];
   wordStats: WordStat[];
+  mathStats: MathStat[];
   unlockedTrophies: TrophyId[];
 }
 
@@ -114,6 +90,7 @@ function defaultState(): GameState {
     letters: LETTERS.map((letter) => ({ letter, attempts: 0, correct: 0 })),
     practiceStats: PRACTICE_GAMES.map((gameId) => ({ gameId, attempts: 0, correct: 0 })),
     wordStats: [],
+    mathStats: [],
     unlockedTrophies: [],
   };
 }
@@ -172,6 +149,17 @@ function sanitizeState(parsed: unknown): GameState | null {
       };
     }),
     wordStats,
+    mathStats: Array.isArray(parsed.mathStats)
+      ? parsed.mathStats.flatMap((row: MathStat) => {
+          if (typeof row?.problem !== "string" || !/^\d+ [+\u2212] \d+$/.test(row.problem)) return [];
+          return [{
+            problem: row.problem,
+            attempts: typeof row.attempts === "number" ? Math.max(0, row.attempts) : 0,
+            correct: typeof row.correct === "number" ? Math.max(0, row.correct) : 0,
+            misses: typeof row.misses === "number" ? Math.max(0, row.misses) : 0,
+          }];
+        })
+      : [],
     unlockedTrophies: parsed.unlockedTrophies.filter(
       (id): id is TrophyId => typeof id === "string" && id in TROPHY_PRICES,
     ),
@@ -241,6 +229,7 @@ async function recordAttemptInner(
   id: Letter | PracticeGameId,
   correct: boolean,
   word?: { word: string; vowel: Vowel },
+  problem?: string,
 ): Promise<{ coinsChanged: number; state: GameState }> {
   const before = loadState();
   const reward = kind === "letter" ? 5 : 3;
@@ -289,6 +278,15 @@ async function recordAttemptInner(
           return existing ? before.wordStats.map((row) => row.word === word.word ? nextRow : row) : [...before.wordStats, nextRow];
         })()
       : before.wordStats,
+    mathStats: problem && /^\d+ [+\u2212] \d+$/.test(problem)
+      ? (() => {
+          const existing = before.mathStats.find((row) => row.problem === problem);
+          const nextRow: MathStat = existing
+            ? { ...existing, attempts: existing.attempts + 1, correct: existing.correct + (correct ? 1 : 0), misses: existing.misses + (correct ? 0 : 1) }
+            : { problem, attempts: 1, correct: correct ? 1 : 0, misses: correct ? 0 : 1 };
+          return existing ? before.mathStats.map((row) => row.problem === problem ? nextRow : row) : [...before.mathStats, nextRow];
+        })()
+      : before.mathStats,
   };
   saveState(next);
   return { coinsChanged, state: next };
@@ -310,8 +308,9 @@ export const api = {
     gameId: PracticeGameId;
     correct: boolean;
     word?: { word: string; vowel: Vowel };
+    problem?: string;
   }): Promise<{ coinsChanged: number; state: GameState }> {
-    return recordAttemptInner("practice", args.gameId, args.correct, args.word);
+    return recordAttemptInner("practice", args.gameId, args.correct, args.word, args.problem);
   },
 
   async unlockTrophy(args: { trophyId: TrophyId }): Promise<{
@@ -344,6 +343,13 @@ export const api = {
   async resetMissedWords(_args: Record<string, never>): Promise<GameState> {
     const before = loadState();
     const next = { ...before, wordStats: [] };
+    saveState(next);
+    return next;
+  },
+
+  async resetMissedNumbers(_args: Record<string, never>): Promise<GameState> {
+    const before = loadState();
+    const next = { ...before, mathStats: [] };
     saveState(next);
     return next;
   },

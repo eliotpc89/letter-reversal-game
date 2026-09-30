@@ -9,16 +9,18 @@ export type GameContext = {
   onOpenShop: () => void;
   /**
    * Record one scored event for this game (+reward / −penalty coins).
-   * `word` is for vowel games (e.g. Sound Blaster) so misses are tracked
-   * per word; games without word-level tracking omit it.
+   * `detail` is per-item tracking: `{ word, vowel }` for vowel games so
+   * misses are tracked per word, `{ problem }` (e.g. "7 + 8") for Math
+   * Blasters so misses are tracked per problem. Games without item-level
+   * tracking omit it.
    */
-  onRecord: (correct: boolean, word?: { word: string; vowel: Vowel }) => Promise<void>;
+  onRecord: (correct: boolean, detail?: { word: string; vowel: Vowel } | { problem: string }) => Promise<void>;
   /** Bed game only: letter attempts need their target letter. */
   recordLetter: (target: Letter, correct: boolean) => Promise<void>;
   /** Bed game only: the scoreboard's grown-up reset lives in its view. */
   onReset: () => void;
   resetting: boolean;
-  /** Sound Blaster only: true when started from the missed-words "Focus these" button. */
+  /** Sound Blaster / Math Blasters: true when started from the missed-items "Focus these" button. */
   focusMissed?: boolean;
 };
 
