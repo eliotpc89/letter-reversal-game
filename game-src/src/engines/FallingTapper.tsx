@@ -145,6 +145,7 @@ export function FallingTapper(props: FallingTapperProps) {
   const streakRef = useRef(0);
   const [victory, setVictory] = useState(false);
   const victoryRef = useRef(false);
+  const [flashTick, setFlashTick] = useState(0);
   const power = powerStreak ? Math.min(hitStreak, streakGoal) / streakGoal : 0;
   const [gameOver, setGameOver] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -209,6 +210,7 @@ export function FallingTapper(props: FallingTapperProps) {
     setFeedback(message);
     streakRef.current = 0;
     setHitStreak(0);
+    setFlashTick((tick) => tick + 1);
     const nextLives = Math.max(0, livesRef.current - 1);
     livesRef.current = nextLives;
     setLives(nextLives);
@@ -325,6 +327,7 @@ export function FallingTapper(props: FallingTapperProps) {
     setHitStreak(0);
     victoryRef.current = false;
     setVictory(false);
+    setFlashTick(0);
     setGameOver(false);
     setBusy(false);
     setPaused(false);
@@ -350,7 +353,7 @@ export function FallingTapper(props: FallingTapperProps) {
     fullscreenClass={shell.fullscreenClass}
   >
     <main className="math-main">
-      <section ref={stageRef} className="math-stage" aria-labelledby="tap-prompt" style={{ "--power": power } as CSSProperties}>
+      <section ref={stageRef} className="math-stage" aria-labelledby="tap-prompt" style={{ "--power": power, "--dmg": startLives - lives } as CSSProperties}>
         <div className="math-stars" aria-hidden="true" />
         <div className="math-prompt"><span>{promptKicker}</span><h1 id="tap-prompt">{wave.prompt}</h1><p>{feedback}</p></div>
         {targets.map((target) => <button
@@ -364,6 +367,8 @@ export function FallingTapper(props: FallingTapperProps) {
         >{target.label}</button>)}
         {laser && <span key={laser.id} className="math-laser" style={{ "--shot-angle": `${laser.angle}rad`, "--shot-distance": `${laser.distance}px` } as CSSProperties} aria-hidden="true" />}
         <div className="ship-deck"><Spaceship /></div>
+        <div className="damage-vignette" aria-hidden="true" />
+        {flashTick > 0 && <div key={flashTick} className="damage-flash" aria-hidden="true" />}
         {paused && !gameOver && <div className="math-paused" role="status"><strong>PAUSED</strong><span>Tap resume when you’re ready.</span></div>}
         {gameOver && <div className="math-game-over" role="status"><strong>{victory ? victoryTitle : gameOverTitle}</strong>{victory && <span className="victory-bonus">Bonus: +{streakBonusCoins} coins!</span>}<span>Score: {score}</span><button type="button" onClick={repair}>{repairLabel}</button></div>}
       </section>

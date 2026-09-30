@@ -178,7 +178,7 @@ export function MathBlastersGame({ coins, onBack, onOpenShop, onRecord, awardBon
     onWrong={() => recordProblem(false)}
     powerStreak
     streakGoal={20}
-    streakBonusCoins={100}
+    streakBonusCoins={200}
     victoryTitle="FLAWLESS VICTORY!"
     onStreakBonus={awardBonus}
     controlsNote="Correct answer = laser blast + coins. Wrong answer = ship damage."
