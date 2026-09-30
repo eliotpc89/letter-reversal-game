@@ -100,7 +100,23 @@ function placeWave(wave: Wave): PlacedTarget[] {
 
 function Spaceship() {
   return <div className="math-ship" aria-hidden="true">
-    <span className="ship-flame" />
+    <svg className="ship-flame" viewBox="0 0 112 56" aria-hidden="true">
+      <defs>
+        <linearGradient id="shipFlameGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#fff" />
+          <stop offset=".35" stopColor="#ffda4d" />
+          <stop offset=".7" stopColor="#ff743f" />
+          <stop offset="1" stopColor="#ff743f" stopOpacity="0" />
+        </linearGradient>
+        <linearGradient id="shipFlameCore" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#fff" />
+          <stop offset=".6" stopColor="#ffedb0" />
+          <stop offset="1" stopColor="#ffedb0" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d="M42,0 C42,14 17,15 0,22 C13,32 32,40 47,50 L56,56 L64,50 C80,40 99,32 112,22 C95,15 70,14 70,0 Z" fill="url(#shipFlameGrad)" />
+      <path d="M48,3 C48,16 34,20 24,27 C32,33 43,37 51,42 L56,46 L61,42 C69,37 80,33 88,27 C78,20 64,16 64,3 Z" fill="url(#shipFlameCore)" />
+    </svg>
     <svg viewBox="0 0 120 86" role="presentation">
       <path d="M60 5 90 60H30Z" fill="#9fd8ff" stroke="#14213d" strokeWidth="6" />
       <path d="M31 60 8 78l9-29 21-3M89 60l23 18-9-29-21-3" fill="#4786c6" stroke="#14213d" strokeWidth="6" strokeLinejoin="round" />
