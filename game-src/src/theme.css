@@ -582,7 +582,7 @@ button { font: inherit; }
 .math-controls button { flex: 0 0 auto; min-height: 42px; padding: 0 10px; border: 2px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); font-size: 12px; font-weight: 850; cursor: pointer; }
 @keyframes math-stars-drift { from { background-position: 12px 5px, 48px 33px; } to { background-position: 12px 150px, 48px 183px; } }
 @keyframes ship-hover { 0%,100% { translate: 0 0; } 50% { translate: 0 -5px; } }
-@keyframes flame-flicker { from { scale: 1 .85; opacity: .75; } to { scale: .82 1.08; opacity: 1; } }
+@keyframes flame-flicker { from { transform: translateX(-50%) scale(1, .85); opacity: .75; } to { transform: translateX(-50%) scale(.82, 1.08); opacity: 1; } }
 @keyframes laser-shot {
   0% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--shot-angle)) translateX(0) scaleX(.35); }
   12% { opacity: 1; }
