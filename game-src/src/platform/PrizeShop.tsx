@@ -14,7 +14,7 @@ export function PrizeShop({ state, open, onClose, onBuy, buying, message }: { st
       <div className="shop-balance"><CoinIcon /><strong>{state.coins}</strong><span>coins to spend</span></div>
       {message && <p className="shop-message" role="status">{message}</p>}
       <div className="shop-grid">
-        {TROPHIES.map((trophy) => {
+        {[...TROPHIES].sort((a, b) => a.price - b.price).map((trophy) => {
           const owned = state.unlockedTrophies.includes(trophy.id);
           const affordable = state.coins >= trophy.price;
           return <article className={`shop-item ${owned ? "owned" : ""}`} key={trophy.id} style={{ "--trophy-color": trophy.color } as CSSProperties}>
