@@ -65,9 +65,10 @@ export type FallingTapperProps = {
    */
   powerStreak?: boolean;
   /**
-   * Flawless-streak bonus (Math Blasters): when powerStreak is on and the
-   * player reaches `streakGoal` consecutive correct answers without taking
-   * a hit, award `streakBonusCoins` bonus coins and end the run in victory.
+   * Bonus-goal (Math Blasters): when powerStreak is on and the player reaches
+   * `streakGoal` correct answers in a run, award `streakBonusCoins` bonus
+   * coins and end the run in victory. Hits don't reset the counter; it
+   * resets only when the ship goes down (all shields break).
    */
   streakGoal?: number;
   streakBonusCoins?: number;
@@ -119,7 +120,7 @@ export function FallingTapper(props: FallingTapperProps) {
     gameOverTitle = "SHIP DOWN!", repairLabel = "Repair and play again",
     onCorrect, onWrong, powerStreak = false,
     streakGoal = 20, streakBonusCoins = 100,
-    victoryTitle = "FLAWLESS VICTORY!", onStreakBonus,
+    victoryTitle = "BONUS UNLOCKED!", onStreakBonus,
   } = props;
   const targetAriaLabel = props.targetAriaLabel ?? ((target) => `Target ${target.label}`);
 
@@ -191,7 +192,7 @@ export function FallingTapper(props: FallingTapperProps) {
     victoryRef.current = true;
     setVictory(true);
     if (soundOn) playJackpot();
-    setFeedback(`Flawless! ${streakGoal} in a row — bonus coins!`);
+    setFeedback(`Bonus goal! ${streakGoal} correct — bonus coins!`);
     try {
       await onStreakBonus?.(streakBonusCoins);
     } catch {
