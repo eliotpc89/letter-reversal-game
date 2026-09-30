@@ -518,6 +518,10 @@ button { font: inherit; }
 .math-hud-block > strong { font-family: "Avenir Next Rounded", "Trebuchet MS", sans-serif; font-size: 17px; line-height: 1; }
 .math-score-block { position: relative; min-width: 52px; }
 .math-score-block small { position: absolute; right: 5px; bottom: 4px; color: var(--blue); font-size: 9px; font-weight: 950; }
+.streak-meter { min-width: 0; }
+.streak-bar { width: 72px; height: 9px; border-radius: 6px; background: rgba(255,255,255,.18); overflow: hidden; margin: 3px 0 2px; }
+.streak-bar i { display: block; height: 100%; border-radius: 6px; background: linear-gradient(90deg, #ffd94d, #ff9a3c); transition: width .25s ease-out; }
+.victory-bonus { color: #ffd94d; font-weight: 800; }
 .shield-meter { min-width: 70px; }
 .shield-meter strong { display: flex; gap: 2px; color: #aab7c9; font-size: 12px; line-height: 1; }
 .shield-meter strong i { font-style: normal; }

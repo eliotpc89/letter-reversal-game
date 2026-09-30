@@ -143,6 +143,15 @@ export function App() {
     onSuccess: (next) => queryClient.setQueryData(["game-state"], next),
   });
 
+  const bonus = useMutation({
+    mutationFn: (coins: number) => api.awardStreakBonus({ coins }),
+    onSuccess: (result) => {
+      queryClient.setQueryData(["game-state"], result.state);
+      setConfettiKey((value) => value + 1);
+      playJackpot();
+    },
+  });
+
   const reset = useMutation({
     mutationFn: () => api.resetProgress({ confirm: true }),
     onSuccess: (next) => queryClient.setQueryData(["game-state"], next),
@@ -214,6 +223,7 @@ export function App() {
     onBack: () => setView("menu"),
     onOpenShop: openShop,
     onRecord: (correct, detail) => savePractice(gameDef.id, correct, detail),
+    awardBonus: (coins) => bonus.mutateAsync(coins).then(() => undefined),
     recordLetter,
     onReset: () => reset.mutate(),
     resetting: reset.isPending,

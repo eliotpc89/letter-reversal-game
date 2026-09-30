@@ -313,6 +313,22 @@ export const api = {
     return recordAttemptInner("practice", args.gameId, args.correct, args.word, args.problem);
   },
 
+  /**
+   * Add bonus coins outside the per-answer reward/penalty flow
+   * (e.g. the Math Blasters flawless-streak bonus).
+   */
+  async awardStreakBonus(args: { coins: number }): Promise<{ state: GameState }> {
+    const before = loadState();
+    const coins = Math.max(0, Math.floor(args.coins));
+    const next: GameState = {
+      ...before,
+      coins: before.coins + coins,
+      totalEarned: before.totalEarned + coins,
+    };
+    saveState(next);
+    return { state: next };
+  },
+
   async unlockTrophy(args: { trophyId: TrophyId }): Promise<{
     status: "unlocked" | "already-owned" | "not-enough-coins";
     state: GameState;

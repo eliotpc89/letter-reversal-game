@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { ensureAudioContext } from "../kit/audio";
-import { playDamage, playLaser, playShieldDown } from "../kit/sfx";
+import { playDamage, playJackpot, playLaser, playShieldDown } from "../kit/sfx";
 import { GameShell, type ShellVariant } from "../shell/GameShell";
 
 /** One tappable falling item. `good` = tapping it is the correct move. */
@@ -64,6 +64,15 @@ export type FallingTapperProps = {
    * the growth. (Math Blasters: true.)
    */
   powerStreak?: boolean;
+  /**
+   * Flawless-streak bonus (Math Blasters): when powerStreak is on and the
+   * player reaches `streakGoal` consecutive correct answers without taking
+   * a hit, award `streakBonusCoins` bonus coins and end the run in victory.
+   */
+  streakGoal?: number;
+  streakBonusCoins?: number;
+  victoryTitle?: string;
+  onStreakBonus?: (coins: number) => Promise<void>;
 };
 
 function shuffled<T>(values: readonly T[]): T[] {
@@ -109,6 +118,8 @@ export function FallingTapper(props: FallingTapperProps) {
     onlyGoodBreachesHurt, startLives = 3, controlsNote,
     gameOverTitle = "SHIP DOWN!", repairLabel = "Repair and play again",
     onCorrect, onWrong, powerStreak = false,
+    streakGoal = 20, streakBonusCoins = 100,
+    victoryTitle = "FLAWLESS VICTORY!", onStreakBonus,
   } = props;
   const targetAriaLabel = props.targetAriaLabel ?? ((target) => `Target ${target.label}`);
 
@@ -131,7 +142,10 @@ export function FallingTapper(props: FallingTapperProps) {
   const [feedback, setFeedback] = useState(introFeedback);
   const [laser, setLaser] = useState<Laser | null>(null);
   const [hitStreak, setHitStreak] = useState(0);
-  const power = powerStreak ? Math.min(hitStreak, 20) / 20 : 0;
+  const streakRef = useRef(0);
+  const [victory, setVictory] = useState(false);
+  const victoryRef = useRef(false);
+  const power = powerStreak ? Math.min(hitStreak, streakGoal) / streakGoal : 0;
   const [gameOver, setGameOver] = useState(false);
   const [busy, setBusy] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
@@ -172,12 +186,28 @@ export function FallingTapper(props: FallingTapperProps) {
     }
   }, [nextRound, paused]);
 
+  const awardVictory = useCallback(async () => {
+    victoryRef.current = true;
+    setVictory(true);
+    if (soundOn) playJackpot();
+    setFeedback(`Flawless! ${streakGoal} in a row — bonus coins!`);
+    try {
+      await onStreakBonus?.(streakBonusCoins);
+    } catch {
+      // The bonus didn't save; the victory still counts.
+    } finally {
+      setGameOver(true);
+      setBusy(false);
+    }
+  }, [onStreakBonus, soundOn, streakBonusCoins, streakGoal]);
+
   const damage = useCallback(async (message: string) => {
     if (lockedRef.current || gameOver) return;
     lockedRef.current = true;
     setBusy(true);
     if (soundOn) playDamage();
     setFeedback(message);
+    streakRef.current = 0;
     setHitStreak(0);
     const nextLives = Math.max(0, livesRef.current - 1);
     livesRef.current = nextLives;
@@ -250,14 +280,20 @@ export function FallingTapper(props: FallingTapperProps) {
       setLaser({ id: Date.now(), angle: Math.atan2(dy, dx), distance: Math.hypot(dx, dy) });
       setTargets((current) => current.map((item) => item.key === target.key ? { ...item, status: "hit" } : item));
       setFeedback(hitFeedback);
-      setHitStreak((value) => Math.min(value + 1, 20));
+      const nextStreak = powerStreak ? Math.min(streakRef.current + 1, streakGoal) : 0;
+      streakRef.current = nextStreak;
+      setHitStreak(nextStreak);
       setScore((value) => value + scoreForRound(round));
       try {
         await onCorrect();
       } catch {
         // The round didn't save; keep playing rather than soft-locking.
       } finally {
-        scheduleNextRound(650);
+        if (powerStreak && nextStreak >= streakGoal && !victoryRef.current) {
+          void awardVictory();
+        } else {
+          scheduleNextRound(650);
+        }
       }
     } else {
       setTargets((current) => current.map((item) => item.key === target.key ? { ...item, status: "wrong" } : item));
@@ -285,7 +321,10 @@ export function FallingTapper(props: FallingTapperProps) {
     setScore(0);
     setFeedback(introFeedback);
     setLaser(null);
+    streakRef.current = 0;
     setHitStreak(0);
+    victoryRef.current = false;
+    setVictory(false);
     setGameOver(false);
     setBusy(false);
     setPaused(false);
@@ -294,6 +333,7 @@ export function FallingTapper(props: FallingTapperProps) {
   const hud = <>
     <div className="math-hud-block math-score-block"><span>Score</span><strong>{score}</strong><small>R{round}</small></div>
     <div className="math-hud-block shield-meter"><span>Shields</span><strong>{Array.from({ length: startLives }, (_, pip) => <i key={pip} className={pip < lives ? "active" : ""}>◆</i>)}</strong></div>
+    {powerStreak && <div className="math-hud-block streak-meter"><span>Streak</span><div className="streak-bar" role="progressbar" aria-valuenow={hitStreak} aria-valuemin={0} aria-valuemax={streakGoal} aria-label={`${hitStreak} of ${streakGoal} toward the flawless bonus`}><i style={{ width: `${(hitStreak / streakGoal) * 100}%` }} /></div><small>{hitStreak}/{streakGoal}</small></div>}
   </>;
 
   const pauseButton = <button className="math-pause" type="button" onClick={togglePause} disabled={gameOver} aria-label={paused ? "Resume game" : "Pause game"}><span aria-hidden="true">{paused ? "▶" : "Ⅱ"}</span><small>{paused ? "Resume" : "Pause"}</small></button>;
@@ -325,7 +365,7 @@ export function FallingTapper(props: FallingTapperProps) {
         {laser && <span key={laser.id} className="math-laser" style={{ "--shot-angle": `${laser.angle}rad`, "--shot-distance": `${laser.distance}px` } as CSSProperties} aria-hidden="true" />}
         <div className="ship-deck"><Spaceship /></div>
         {paused && !gameOver && <div className="math-paused" role="status"><strong>PAUSED</strong><span>Tap resume when you’re ready.</span></div>}
-        {gameOver && <div className="math-game-over" role="status"><strong>{gameOverTitle}</strong><span>Score: {score}</span><button type="button" onClick={repair}>{repairLabel}</button></div>}
+        {gameOver && <div className="math-game-over" role="status"><strong>{victory ? victoryTitle : gameOverTitle}</strong>{victory && <span className="victory-bonus">Bonus: +{streakBonusCoins} coins!</span>}<span>Score: {score}</span><button type="button" onClick={repair}>{repairLabel}</button></div>}
       </section>
       <div className="math-controls"><p>{controlsNote}</p><button type="button" onClick={() => setSoundOn((value) => !value)}>{soundOn ? "🔊 Sounds on" : "🔇 Sounds off"}</button></div>
     </main>

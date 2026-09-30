@@ -74,7 +74,7 @@ function setBlurb(set: MathSet): string {
  * pick a set (e.g. +4) and every wave draws from that set's problems,
  * reshuffling when the deck runs out.
  */
-export function MathBlastersGame({ coins, onBack, onOpenShop, onRecord, state, focusMissed }: GameContext) {
+export function MathBlastersGame({ coins, onBack, onOpenShop, onRecord, awardBonus, state, focusMissed }: GameContext) {
   const { mathBlaster } = useContent();
   const [setId, setSetId] = useState<string | null>(null);
   const set = mathBlaster.sets.find((candidate) => candidate.id === setId) ?? null;
@@ -177,6 +177,10 @@ export function MathBlastersGame({ coins, onBack, onOpenShop, onRecord, state, f
     onCorrect={() => recordProblem(true)}
     onWrong={() => recordProblem(false)}
     powerStreak
+    streakGoal={20}
+    streakBonusCoins={100}
+    victoryTitle="FLAWLESS VICTORY!"
+    onStreakBonus={awardBonus}
     controlsNote="Correct answer = laser blast + coins. Wrong answer = ship damage."
   />;
 }

@@ -15,6 +15,11 @@ export type GameContext = {
    * tracking omit it.
    */
   onRecord: (correct: boolean, detail?: { word: string; vowel: Vowel } | { problem: string }) => Promise<void>;
+  /**
+   * Award bonus coins outside the per-answer reward/penalty flow
+   * (Math Blasters: +100 for a 20-answer flawless streak).
+   */
+  awardBonus: (coins: number) => Promise<void>;
   /** Bed game only: letter attempts need their target letter. */
   recordLetter: (target: Letter, correct: boolean) => Promise<void>;
   /** Bed game only: the scoreboard's grown-up reset lives in its view. */
