@@ -208,8 +208,6 @@ export function FallingTapper(props: FallingTapperProps) {
     setBusy(true);
     if (soundOn) playDamage();
     setFeedback(message);
-    streakRef.current = 0;
-    setHitStreak(0);
     setFlashTick((tick) => tick + 1);
     const nextLives = Math.max(0, livesRef.current - 1);
     livesRef.current = nextLives;
@@ -336,7 +334,7 @@ export function FallingTapper(props: FallingTapperProps) {
   const hud = <>
     <div className="math-hud-block math-score-block"><span>Score</span><strong>{score}</strong><small>R{round}</small></div>
     <div className="math-hud-block shield-meter"><span>Shields</span><strong>{Array.from({ length: startLives }, (_, pip) => <i key={pip} className={pip < lives ? "active" : ""}>◆</i>)}</strong></div>
-    {powerStreak && <div className="math-hud-block streak-meter"><span>Streak</span><div className="streak-bar" role="progressbar" aria-valuenow={hitStreak} aria-valuemin={0} aria-valuemax={streakGoal} aria-label={`${hitStreak} of ${streakGoal} toward the flawless bonus`}><i style={{ width: `${(hitStreak / streakGoal) * 100}%` }} /></div><small>{hitStreak}/{streakGoal}</small></div>}
+    {powerStreak && <div className="math-hud-block streak-meter"><span>Bonus</span><div className="streak-bar" role="progressbar" aria-valuenow={hitStreak} aria-valuemin={0} aria-valuemax={streakGoal} aria-label={`${hitStreak} of ${streakGoal} correct toward the 200-coin bonus`}><i style={{ width: `${(hitStreak / streakGoal) * 100}%` }} /></div><small>{hitStreak}/{streakGoal}</small></div>}
   </>;
 
   const pauseButton = <button className="math-pause" type="button" onClick={togglePause} disabled={gameOver} aria-label={paused ? "Resume game" : "Pause game"}><span aria-hidden="true">{paused ? "▶" : "Ⅱ"}</span><small>{paused ? "Resume" : "Pause"}</small></button>;
