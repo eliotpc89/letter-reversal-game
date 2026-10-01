@@ -128,6 +128,14 @@ function Spaceship() {
 
 const BREACH_Y = 83;
 
+/**
+ * Global fall-speed scale for every falling-targets game (Math Blasters, Odd
+ * One Out via this engine, plus Sound Blaster and Bonus Blaster which run
+ * their own loops but import this). 0.75 = 25% slower than the per-game tuned
+ * speeds. One knob on purpose: the games must not drift apart.
+ */
+export const FALL_SPEED_SCALE = 0.75;
+
 export function FallingTapper(props: FallingTapperProps) {
   const {
     shell, promptKicker, introFeedback, nextWaveFeedback, hitFeedback,
@@ -247,7 +255,7 @@ export function FallingTapper(props: FallingTapperProps) {
   useEffect(() => {
     let frame = 0;
     let previous = performance.now();
-    const speed = speedForRound(round);
+    const speed = speedForRound(round) * FALL_SPEED_SCALE;
     const tick = (now: number) => {
       const delta = Math.min(40, now - previous);
       previous = now;

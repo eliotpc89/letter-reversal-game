@@ -3,6 +3,7 @@ import { useAudioClip } from "../kit/useAudioClip";
 import { playDamage, playLaser, playShieldDown } from "../kit/sfx";
 import { useWordBank } from "../content/ContentContext";
 import { shuffled, type PracticeWord } from "../content/word-bank";
+import { FALL_SPEED_SCALE } from "../engines/FallingTapper";
 import type { GameContext } from "./types";
 
 type SoundTarget = { id: string; value: "o" | "u"; x: number; y: number; status: "falling" | "hit" | "wrong" | "missed" };
@@ -102,7 +103,7 @@ export function SoundBlasterGame({ coins, onBack, onOpenShop, onRecord, state, f
   useEffect(() => {
     if (!target.audio || gameOver || paused) return;
     let cancelled = false;
-    const speed = 0.0075 + Math.min(round, 12) * 0.0006;
+    const speed = (0.0075 + Math.min(round, 12) * 0.0006) * FALL_SPEED_SCALE;
     const halfwayMs = Math.max(1200, Math.round(((83 - 35) / speed) / 2));
     void playWord(target.audio).catch(() => undefined);
     audioRepeatTimerRef.current = window.setTimeout(() => {
@@ -177,7 +178,7 @@ export function SoundBlasterGame({ coins, onBack, onOpenShop, onRecord, state, f
       previous = now;
       if (!paused && !lockedRef.current && !gameOver) {
         setTargets((current) => {
-          const next = current.map((item) => item.status === "falling" ? { ...item, y: item.y + delta * (0.0075 + Math.min(round, 12) * 0.0006) } : item);
+          const next = current.map((item) => item.status === "falling" ? { ...item, y: item.y + delta * (0.0075 + Math.min(round, 12) * 0.0006) * FALL_SPEED_SCALE } : item);
           const breached = next.find((item) => item.status === "falling" && item.y >= 83);
           if (breached) void damage("A vowel got through — listen and protect your ship!");
           return next;
