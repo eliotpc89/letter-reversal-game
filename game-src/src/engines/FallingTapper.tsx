@@ -20,7 +20,7 @@ export type Wave = {
 type PlacedTarget = TapTarget & {
   x: number;
   y: number;
-  status: "falling" | "hit" | "wrong" | "missed";
+  status: "falling" | "hit" | "wrong" | "missed" | "revealed";
 };
 
 type Laser = { id: number; angle: number; distance: number };
@@ -58,6 +58,17 @@ export type FallingTapperProps = {
   repairLabel?: string;
   onCorrect: () => Promise<void>;
   onWrong: () => Promise<void>;
+  /**
+   * When true, a wrong tap floats the correct target to the middle of the
+   * stage with a gold glow and holds the wave for `wrongPauseMs` so the
+   * player sees the right answer. (Math Blasters: true.)
+   */
+  revealCorrectOnWrong?: boolean;
+  /**
+   * How long the wave holds after a wrong tap before the next round, in ms.
+   * Defaults to the historical 850.
+   */
+  wrongPauseMs?: number;
   /**
    * When true, each consecutive correct answer grows the ship's flame and
    * the laser a little, up to a cap at 20 straight hits. Any damage resets
@@ -137,6 +148,7 @@ export function FallingTapper(props: FallingTapperProps) {
     onCorrect, onWrong, powerStreak = false,
     streakGoal = 20, streakBonusCoins = 100,
     victoryTitle = "BONUS UNLOCKED!", onStreakBonus,
+    revealCorrectOnWrong = false, wrongPauseMs = 850,
   } = props;
   const targetAriaLabel = props.targetAriaLabel ?? ((target) => `Target ${target.label}`);
 
@@ -219,7 +231,7 @@ export function FallingTapper(props: FallingTapperProps) {
     }
   }, [onStreakBonus, soundOn, streakBonusCoins, streakGoal]);
 
-  const damage = useCallback(async (message: string) => {
+  const damage = useCallback(async (message: string, pauseMs: number = 850) => {
     if (lockedRef.current || gameOver) return;
     lockedRef.current = true;
     setBusy(true);
@@ -239,7 +251,7 @@ export function FallingTapper(props: FallingTapperProps) {
         setGameOver(true);
         setBusy(false);
       } else {
-        scheduleNextRound(850);
+        scheduleNextRound(pauseMs);
       }
     }
   }, [gameOver, nextRound, onWrong, scheduleNextRound, soundOn]);
@@ -313,9 +325,13 @@ export function FallingTapper(props: FallingTapperProps) {
         }
       }
     } else {
-      setTargets((current) => current.map((item) => item.key === target.key ? { ...item, status: "wrong" } : item));
+      setTargets((current) => current.map((item) => {
+        if (item.key === target.key) return { ...item, status: "wrong" as const };
+        if (revealCorrectOnWrong && item.good && item.status === "falling") return { ...item, status: "revealed" as const };
+        return item;
+      }));
       lockedRef.current = false;
-      await damage(wrongFeedback(wave ?? { prompt: "", targets: [] }, target));
+      await damage(wrongFeedback(wave ?? { prompt: "", targets: [] }, target), wrongPauseMs);
     }
   };
 
@@ -374,7 +390,9 @@ export function FallingTapper(props: FallingTapperProps) {
         {targets.map((target) => <button
           key={target.key}
           className={`answer-target ${target.status}`}
-          style={{ left: `${target.x}%`, top: `${target.y}%` }}
+          style={target.status === "revealed"
+            ? { left: "50%", top: "44%" }
+            : { left: `${target.x}%`, top: `${target.y}%` }}
           type="button"
           onPointerDown={() => void fire(target)}
           disabled={busy || gameOver || target.status !== "falling"}

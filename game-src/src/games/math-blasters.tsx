@@ -176,6 +176,8 @@ export function MathBlastersGame({ coins, onBack, onOpenShop, onRecord, awardBon
     targetAriaLabel={(target) => `Answer ${target.label}`}
     onCorrect={() => recordProblem(true)}
     onWrong={() => recordProblem(false)}
+    revealCorrectOnWrong
+    wrongPauseMs={1400}
     powerStreak
     streakGoal={20}
     streakBonusCoins={200}
