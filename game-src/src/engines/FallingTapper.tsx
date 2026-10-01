@@ -186,9 +186,9 @@ export function FallingTapper(props: FallingTapperProps) {
   const power = powerStreak ? Math.min(hitStreak, streakGoal) / streakGoal : 0;
   const [gameOver, setGameOver] = useState(false);
   const [busy, setBusy] = useState(false);
-  // Where the revealed correct answer parks: just under the prompt block,
-  // measured at reveal time so it lands right below the "?" on any screen.
-  const [revealTop, setRevealTop] = useState("20%");
+  // Where the revealed correct answer parks: centered on the "?" glyph,
+  // measured at reveal time so it stamps over the question mark on any screen.
+  const [revealPos, setRevealPos] = useState({ left: "50%", top: "20%" });
   const [soundOn, setSoundOn] = useState(true);
   const [paused, setPaused] = useState(false);
 
@@ -336,16 +336,55 @@ export function FallingTapper(props: FallingTapperProps) {
         }
       }
     } else {
-      // Anchor the reveal just below the prompt so the equation stays readable.
-      const stageEl = stageRef.current;
-      const promptEl = stageEl?.querySelector(".math-prompt");
-      if (stageEl && promptEl) {
-        const stageBox = stageEl.getBoundingClientRect();
-        const promptBox = promptEl.getBoundingClientRect();
-        if (stageBox.height > 0) {
-          const topPct = ((promptBox.bottom - stageBox.top + 10) / stageBox.height) * 100;
-          setRevealTop(`${Math.min(60, Math.max(8, topPct)).toFixed(1)}%`);
+      // Anchor the reveal on the "?" glyph: measure the last character of the
+      // prompt with a Range and center the bubble over it, so the gold answer
+      // visibly stamps out the question mark. Falls back to the prompt's
+      // right end if the prompt isn't a plain text node.
+      try {
+        const stageEl = stageRef.current;
+        const h1 = stageEl?.querySelector("#tap-prompt");
+        const sample = stageEl?.querySelector(".answer-target");
+        if (stageEl && h1 && sample) {
+          const stageBox = stageEl.getBoundingClientRect();
+          const sampleBox = sample.getBoundingClientRect();
+          // The prompt renders as several adjacent text nodes (e.g. "7"," ",
+          // "+"," ","1"," = ?"), so find the last non-blank text node and
+          // measure its final character — the "?".
+          let gx = 0, gy = 0, gw = 0, gh = 0, found = false;
+          const textNodes: Text[] = [];
+          h1.childNodes.forEach((n) => {
+            if (n.nodeType === Node.TEXT_NODE && n.textContent) textNodes.push(n as Text);
+          });
+          for (let i = textNodes.length - 1; i >= 0; i--) {
+            const node = textNodes[i];
+            const t = node?.textContent ?? "";
+            if (!node || t.trim().length === 0) continue;
+            const range = document.createRange();
+            range.setStart(node, t.length - 1);
+            range.setEnd(node, t.length);
+            const gr = range.getBoundingClientRect();
+            gx = gr.left; gy = gr.top; gw = gr.width; gh = gr.height; found = true;
+            break;
+          }
+          if (!found) {
+            const hr = h1.getBoundingClientRect();
+            gx = hr.right - hr.height * 0.7; gy = hr.top; gw = hr.height * 0.7; gh = hr.height;
+          }
+          if (stageBox.width > 0 && stageBox.height > 0 && sampleBox.height > 0) {
+            const cx = gx + gw / 2;
+            const cy = gy + gh / 2;
+            const leftPct = (cx - stageBox.left) / stageBox.width * 100;
+            // .answer-target uses translate(-50%, 0): left is the center, top is the top edge.
+            const topPct = (cy - stageBox.top - sampleBox.height / 2) / stageBox.height * 100;
+            const clampPct = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+            setRevealPos({
+              left: `${clampPct(leftPct, 5, 95).toFixed(1)}%`,
+              top: `${clampPct(topPct, 1, 85).toFixed(1)}%`,
+            });
+          }
         }
+      } catch {
+        // Keep the fallback position.
       }
       setTargets((current) => current.map((item) => {
         if (item.key === target.key) return { ...item, status: "wrong" as const };
@@ -413,7 +452,7 @@ export function FallingTapper(props: FallingTapperProps) {
           key={target.key}
           className={`answer-target ${target.status}`}
           style={target.status === "revealed"
-            ? { left: "50%", top: revealTop }
+            ? { left: revealPos.left, top: revealPos.top }
             : { left: `${target.x}%`, top: `${target.y}%` }}
           type="button"
           onPointerDown={() => void fire(target)}
