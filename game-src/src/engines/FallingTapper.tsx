@@ -186,6 +186,9 @@ export function FallingTapper(props: FallingTapperProps) {
   const power = powerStreak ? Math.min(hitStreak, streakGoal) / streakGoal : 0;
   const [gameOver, setGameOver] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Where the revealed correct answer parks: just under the prompt block,
+  // measured at reveal time so it lands right below the "?" on any screen.
+  const [revealTop, setRevealTop] = useState("20%");
   const [soundOn, setSoundOn] = useState(true);
   const [paused, setPaused] = useState(false);
 
@@ -333,6 +336,17 @@ export function FallingTapper(props: FallingTapperProps) {
         }
       }
     } else {
+      // Anchor the reveal just below the prompt so the equation stays readable.
+      const stageEl = stageRef.current;
+      const promptEl = stageEl?.querySelector(".math-prompt");
+      if (stageEl && promptEl) {
+        const stageBox = stageEl.getBoundingClientRect();
+        const promptBox = promptEl.getBoundingClientRect();
+        if (stageBox.height > 0) {
+          const topPct = ((promptBox.bottom - stageBox.top + 10) / stageBox.height) * 100;
+          setRevealTop(`${Math.min(60, Math.max(8, topPct)).toFixed(1)}%`);
+        }
+      }
       setTargets((current) => current.map((item) => {
         if (item.key === target.key) return { ...item, status: "wrong" as const };
         if (revealCorrectOnWrong && item.good && item.status === "falling") return { ...item, status: "revealed" as const };
@@ -399,7 +413,7 @@ export function FallingTapper(props: FallingTapperProps) {
           key={target.key}
           className={`answer-target ${target.status}`}
           style={target.status === "revealed"
-            ? { left: "50%", top: "44%" }
+            ? { left: "50%", top: revealTop }
             : { left: `${target.x}%`, top: `${target.y}%` }}
           type="button"
           onPointerDown={() => void fire(target)}
