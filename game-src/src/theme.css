@@ -564,6 +564,20 @@ button { font: inherit; }
 .answer-target.hit { animation: answer-hit .58s ease both; pointer-events: none; }
 .answer-target.wrong { animation: answer-wrong .65s ease both; filter: saturate(.55) hue-rotate(285deg); }
 .answer-target.missed { opacity: .2; }
+/* Wrong-tap reveal (Math Blasters): the correct bubble gets a pulsing gold glow
+   in place while the equation fades into its clean answered form. left/top
+   transition on this class is kept so a future reposition still animates. */
+.answer-target.revealed { transition: left .45s ease, top .45s ease, filter .12s ease, opacity .25s ease, transform .25s ease; z-index: 6; border-color: #8a6d00; background: radial-gradient(circle at 50% 42%, #fffbe8 0 34%, #ffe98a 35% 67%, #f5b301 100%); animation: correct-reveal-glow 1s ease-in-out infinite; pointer-events: none; }
+.answer-target.revealed.absorbed { opacity: 0; transform: translate(-50%, 0) scale(.35); }
+@keyframes correct-reveal-glow { 0%, 100% { box-shadow: 0 0 18px 5px rgba(255,200,0,.8), 0 0 44px 12px rgba(255,170,0,.45); } 50% { box-shadow: 0 0 32px 10px rgba(255,210,0,.95), 0 0 72px 20px rgba(255,170,0,.6); } }
+/* Clean-equation reveal: the prompt fades from "a + b = ?" into the fully
+   answered equation, the answer in gold with a navy outline consistent with
+   the golf-ball bubbles' border. Other falling bubbles dim so the equation
+   is the focus. */
+#tap-prompt.answered { animation: prompt-answer-in .5s ease both; }
+@keyframes prompt-answer-in { from { opacity: 0; transform: translateY(8px) scale(.96); } to { opacity: 1; transform: none; } }
+#tap-prompt .prompt-answer-gold { color: #ffc933; -webkit-text-stroke: 2.5px #14213d; paint-order: stroke fill; text-shadow: 0 3px 0 rgba(6,16,39,.9), 0 0 22px rgba(255,200,0,.55); }
+.math-stage.reveal-focus .answer-target.falling { opacity: .3; }
 .math-laser { position: absolute; z-index: 7; left: 50%; top: 86%; width: calc(52px * (1 + var(--power, 0) * .6)); height: calc(9px * (1 + var(--power, 0) * .7)); transform-origin: center; transform: translate(-50%, -50%) rotate(var(--shot-angle)) translateX(0) scaleX(.35); border-radius: 999px; background: linear-gradient(90deg, transparent 0%, #35eaff 20%, #fff 52%, #35eaff 84%, transparent 100%); box-shadow: 0 0 5px 2px #fff, 0 0 13px 4px rgba(53,234,255,.95); animation: laser-shot .48s cubic-bezier(.18,.78,.25,1) both; pointer-events: none; }
 .math-laser::after { content: ""; position: absolute; right: -2px; top: 50%; width: 12px; height: 12px; transform: translateY(-50%); border-radius: 50%; background: #fff; box-shadow: 0 0 8px 4px #35eaff; }
 .ship-deck { position: absolute; z-index: 3; left: 50%; bottom: 2%; width: 128px; height: 110px; transform: translateX(-50%); }

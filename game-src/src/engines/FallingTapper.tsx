@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { Fragment, cloneElement, isValidElement, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { ensureAudioContext } from "../kit/audio";
 import { playDamage, playJackpot, playLaser, playShieldDown } from "../kit/sfx";
 import { GameShell, type ShellVariant } from "../shell/GameShell";
@@ -20,7 +20,7 @@ export type Wave = {
 type PlacedTarget = TapTarget & {
   x: number;
   y: number;
-  status: "falling" | "hit" | "wrong" | "missed";
+  status: "falling" | "hit" | "wrong" | "missed" | "revealed";
 };
 
 type Laser = { id: number; angle: number; distance: number };
@@ -58,6 +58,23 @@ export type FallingTapperProps = {
   repairLabel?: string;
   onCorrect: () => Promise<void>;
   onWrong: () => Promise<void>;
+  /**
+   * When true, a wrong tap floats the correct target to the middle of the
+   * stage with a gold glow and holds the wave for `wrongPauseMs` so the
+   * player sees the right answer. (Math Blasters: true.)
+   */
+  revealCorrectOnWrong?: boolean;
+  /**
+   * How long the wave holds after a wrong tap before the next round, in ms.
+   * Defaults to the historical 850.
+   */
+  wrongPauseMs?: number;
+  /**
+   * Optional audio for a wrong tap: return the URL of a clip to play shortly
+   * after the tap (e.g. Math Blasters' recorded equation reading). Respects
+   * the sound toggle. Return null for no clip.
+   */
+  wrongAudio?: (wave: Wave, target: TapTarget) => string | null;
   /**
    * When true, each consecutive correct answer grows the ship's flame and
    * the laser a little, up to a cap at 20 straight hits. Any damage resets
@@ -129,6 +146,43 @@ function Spaceship() {
 const BREACH_Y = 83;
 
 /**
+ * Swap the prompt's "?" for the revealed answer, styled gold. The prompt can
+ * be a string, a number, an array of parts, or a JSX element (math renders
+ * <>{left} {op} {right} = ?</>), so this walks the node tree and replaces
+ * every "?".
+ */
+function injectAnswer(node: ReactNode, answer: string): ReactNode {
+  if (typeof node === "string" || typeof node === "number") {
+    const text = String(node);
+    if (!text.includes("?")) return node;
+    const parts = text.split("?");
+    return (
+      <>
+        {parts.map((part, i) => (
+          <Fragment key={i}>
+            {part}
+            {i < parts.length - 1 && <span className="prompt-answer-gold">{answer}</span>}
+          </Fragment>
+        ))}
+      </>
+    );
+  }
+  if (Array.isArray(node)) {
+    return (
+      <>
+        {node.map((child, i) => (
+          <Fragment key={i}>{injectAnswer(child, answer)}</Fragment>
+        ))}
+      </>
+    );
+  }
+  if (isValidElement<{ children?: ReactNode }>(node)) {
+    return cloneElement(node, { ...node.props, children: injectAnswer(node.props.children, answer) });
+  }
+  return node;
+}
+
+/**
  * Global fall-speed scale for every falling-targets game (Math Blasters, Odd
  * One Out via this engine, plus Sound Blaster and Bonus Blaster which run
  * their own loops but import this). 0.75 = 25% slower than the per-game tuned
@@ -145,8 +199,22 @@ export function FallingTapper(props: FallingTapperProps) {
     onCorrect, onWrong, powerStreak = false,
     streakGoal = 20, streakBonusCoins = 100,
     victoryTitle = "BONUS UNLOCKED!", onStreakBonus,
+    revealCorrectOnWrong = false, wrongPauseMs = 850, wrongAudio,
   } = props;
   const targetAriaLabel = props.targetAriaLabel ?? ((target) => `Target ${target.label}`);
+  const wrongAudioRef = useRef(wrongAudio);
+  wrongAudioRef.current = wrongAudio;
+
+  /** Fire the ship's laser visual + pew at a tapped target. */
+  const fireLaserAt = (target: PlacedTarget) => {
+    if (soundOn) playLaser();
+    const stage = stageRef.current?.getBoundingClientRect();
+    const width = stage?.width ?? 360;
+    const height = stage?.height ?? 560;
+    const dx = (target.x / 100) * width - width * 0.5;
+    const dy = (target.y / 100) * height - height * 0.86;
+    setLaser({ id: Date.now(), angle: Math.atan2(dy, dx), distance: Math.hypot(dx, dy) });
+  };
 
   const stageRef = useRef<HTMLElement | null>(null);
   const timerRef = useRef<number | null>(null);
@@ -174,6 +242,13 @@ export function FallingTapper(props: FallingTapperProps) {
   const power = powerStreak ? Math.min(hitStreak, streakGoal) / streakGoal : 0;
   const [gameOver, setGameOver] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Wrong-answer reveal choreography (Math Blasters): the correct bubble glows
+  // gold and flies to the "?" glyph, the equation morphs "?" into the gold
+  // answer, and the bubble dissolves into it on arrival.
+  const [revealPos, setRevealPos] = useState<{ left: string; top: string } | null>(null);
+  const [revealAnswer, setRevealAnswer] = useState<string | null>(null);
+  const [absorbed, setAbsorbed] = useState(false);
+  const absorbTimers = useRef<number[]>([]);
   const [soundOn, setSoundOn] = useState(true);
   const [paused, setPaused] = useState(false);
 
@@ -186,6 +261,11 @@ export function FallingTapper(props: FallingTapperProps) {
       setTargets(placeWave(nextWave));
       setFeedback(nextWaveFeedback);
       setLaser(null);
+      setRevealPos(null);
+      setRevealAnswer(null);
+      setAbsorbed(false);
+      absorbTimers.current.forEach((id) => window.clearTimeout(id));
+      absorbTimers.current = [];
       lockedRef.current = false;
       setBusy(false);
       return next;
@@ -227,7 +307,7 @@ export function FallingTapper(props: FallingTapperProps) {
     }
   }, [onStreakBonus, soundOn, streakBonusCoins, streakGoal]);
 
-  const damage = useCallback(async (message: string) => {
+  const damage = useCallback(async (message: string, pauseMs: number = 850) => {
     if (lockedRef.current || gameOver) return;
     lockedRef.current = true;
     setBusy(true);
@@ -247,7 +327,7 @@ export function FallingTapper(props: FallingTapperProps) {
         setGameOver(true);
         setBusy(false);
       } else {
-        scheduleNextRound(850);
+        scheduleNextRound(pauseMs);
       }
     }
   }, [gameOver, nextRound, onWrong, scheduleNextRound, soundOn]);
@@ -287,6 +367,7 @@ export function FallingTapper(props: FallingTapperProps) {
 
   useEffect(() => () => {
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    absorbTimers.current.forEach((id) => window.clearTimeout(id));
   }, []);
 
   const fire = async (target: PlacedTarget) => {
@@ -296,13 +377,7 @@ export function FallingTapper(props: FallingTapperProps) {
     setBusy(true);
     const wave = waveRef.current;
     if (target.good) {
-      if (soundOn) playLaser();
-      const stage = stageRef.current?.getBoundingClientRect();
-      const width = stage?.width ?? 360;
-      const height = stage?.height ?? 560;
-      const dx = (target.x / 100) * width - width * 0.5;
-      const dy = (target.y / 100) * height - height * 0.86;
-      setLaser({ id: Date.now(), angle: Math.atan2(dy, dx), distance: Math.hypot(dx, dy) });
+      fireLaserAt(target);
       setTargets((current) => current.map((item) => item.key === target.key ? { ...item, status: "hit" } : item));
       setFeedback(hitFeedback);
       const nextStreak = powerStreak ? Math.min(streakRef.current + 1, streakGoal) : 0;
@@ -321,9 +396,80 @@ export function FallingTapper(props: FallingTapperProps) {
         }
       }
     } else {
-      setTargets((current) => current.map((item) => item.key === target.key ? { ...item, status: "wrong" } : item));
+      // Every tap fires the ship's laser (visual + pew) — including wrong answers.
+      fireLaserAt(target);
+      // Wrong-answer audio (e.g. the recorded equation reading): play shortly
+      // after the tap so the pew lands first and the words track the reveal.
+      const equationUrl = wave ? wrongAudioRef.current?.(wave, target) ?? null : null;
+      if (equationUrl && soundOn) {
+        window.setTimeout(() => {
+          new Audio(equationUrl).play().catch(() => {});
+        }, 350);
+      }
+      // Reveal choreography: the correct bubble glows gold and flies to the
+      // "?" glyph; mid-flight the equation morphs "?" into the gold answer;
+      // on arrival the bubble dissolves into it.
+      if (revealCorrectOnWrong) {
+        const good = targets.find((item) => item.good && item.status === "falling");
+        if (good) {
+          // Measure the "?" glyph: the prompt renders as several adjacent
+          // text nodes (e.g. "7"," ","+"," ","1"," = ?"), so scan for the
+          // last non-blank text node and take its final character.
+          try {
+            const stageEl = stageRef.current;
+            const h1 = stageEl?.querySelector("#tap-prompt");
+            const sample = stageEl?.querySelector(".answer-target");
+            if (stageEl && h1 && sample) {
+              const stageBox = stageEl.getBoundingClientRect();
+              const sampleBox = sample.getBoundingClientRect();
+              let gx = 0, gy = 0, gw = 0, gh = 0, found = false;
+              const textNodes: Text[] = [];
+              h1.childNodes.forEach((n) => {
+                if (n.nodeType === Node.TEXT_NODE && n.textContent) textNodes.push(n as Text);
+              });
+              for (let i = textNodes.length - 1; i >= 0; i--) {
+                const node = textNodes[i];
+                const t = node?.textContent ?? "";
+                if (!node || t.trim().length === 0) continue;
+                const range = document.createRange();
+                range.setStart(node, t.length - 1);
+                range.setEnd(node, t.length);
+                const gr = range.getBoundingClientRect();
+                gx = gr.left; gy = gr.top; gw = gr.width; gh = gr.height; found = true;
+                break;
+              }
+              if (!found) {
+                const hr = h1.getBoundingClientRect();
+                gx = hr.right - hr.height * 0.7; gy = hr.top; gw = hr.height * 0.7; gh = hr.height;
+              }
+              if (stageBox.width > 0 && stageBox.height > 0 && sampleBox.height > 0) {
+                const cx = gx + gw / 2;
+                const cy = gy + gh / 2;
+                const leftPct = (cx - stageBox.left) / stageBox.width * 100;
+                // .answer-target uses translate(-50%, 0): left is the center, top is the top edge.
+                const topPct = (cy - stageBox.top - sampleBox.height / 2) / stageBox.height * 100;
+                const clampPct = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+                setRevealPos({
+                  left: `${clampPct(leftPct, 5, 95).toFixed(1)}%`,
+                  top: `${clampPct(topPct, 1, 85).toFixed(1)}%`,
+                });
+              }
+            }
+          } catch {
+            // No measured anchor: the bubble just glows in place.
+          }
+          const label = good.label;
+          absorbTimers.current.push(window.setTimeout(() => setRevealAnswer(label), 260));
+          absorbTimers.current.push(window.setTimeout(() => setAbsorbed(true), 400));
+        }
+      }
+      setTargets((current) => current.map((item) => {
+        if (item.key === target.key) return { ...item, status: "wrong" as const };
+        if (revealCorrectOnWrong && item.good && item.status === "falling") return { ...item, status: "revealed" as const };
+        return item;
+      }));
       lockedRef.current = false;
-      await damage(wrongFeedback(wave ?? { prompt: "", targets: [] }, target));
+      await damage(wrongFeedback(wave ?? { prompt: "", targets: [] }, target), wrongPauseMs);
     }
   };
 
@@ -376,13 +522,15 @@ export function FallingTapper(props: FallingTapperProps) {
     fullscreenClass={shell.fullscreenClass}
   >
     <main className="math-main">
-      <section ref={stageRef} className="math-stage" aria-labelledby="tap-prompt" style={{ "--power": power, "--dmg": startLives - lives } as CSSProperties}>
+      <section ref={stageRef} className={`math-stage${revealPos || revealAnswer ? " reveal-focus" : ""}`} aria-labelledby="tap-prompt" style={{ "--power": power, "--dmg": startLives - lives } as CSSProperties}>
         <div className="math-stars" aria-hidden="true" />
-        <div className="math-prompt"><span>{promptKicker}</span><h1 id="tap-prompt">{wave.prompt}</h1><p>{feedback}</p></div>
+        <div className="math-prompt"><span>{promptKicker}</span><h1 id="tap-prompt" className={revealAnswer ? "answered" : ""}>{revealAnswer ? injectAnswer(wave.prompt, revealAnswer) : wave.prompt}</h1><p>{feedback}</p></div>
         {targets.map((target) => <button
           key={target.key}
-          className={`answer-target ${target.status}`}
-          style={{ left: `${target.x}%`, top: `${target.y}%` }}
+          className={`answer-target ${target.status}${target.status === "revealed" && absorbed ? " absorbed" : ""}`}
+          style={target.status === "revealed" && revealPos
+            ? { left: revealPos.left, top: revealPos.top }
+            : { left: `${target.x}%`, top: `${target.y}%` }}
           type="button"
           onPointerDown={() => void fire(target)}
           disabled={busy || gameOver || target.status !== "falling"}

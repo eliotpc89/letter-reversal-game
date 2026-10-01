@@ -131,6 +131,13 @@ export function MathBlastersGame({ coins, onBack, onOpenShop, onRecord, awardBon
     return `That was ${target.label}. Try the answer to ${equation}!`;
   }, []);
 
+  const wrongAudio = useCallback((_wave: Wave, target: TapTarget) => {
+    const problem = problemRef.current;
+    if (!problem) return null;
+    const op = problem.operator === "+" ? "plus" : "minus";
+    return `content/audio/math/${problem.left}-${op}-${problem.right}-equals-${problem.answer}.mp3`;
+  }, []);
+
   const recordProblem = useCallback((correct: boolean) => {
     const problem = problemRef.current;
     return problem ? onRecord(correct, { problem: problemLabel(problem) }) : onRecord(correct);
@@ -177,6 +184,9 @@ export function MathBlastersGame({ coins, onBack, onOpenShop, onRecord, awardBon
     targetAriaLabel={(target) => `Answer ${target.label}`}
     onCorrect={() => recordProblem(true)}
     onWrong={() => recordProblem(false)}
+    revealCorrectOnWrong
+    wrongPauseMs={5000}
+    wrongAudio={wrongAudio}
     powerStreak
     streakGoal={20}
     streakBonusCoins={200}
