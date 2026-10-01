@@ -67,7 +67,8 @@ function setBlurb(set: MathSet): string {
 /**
  * Math Blasters, re-skinned onto the shared FallingTapper engine.
  * Same scoring (10 + max(0, 5 − round)), same coin flow, same feedback copy.
- * Fall speeds follow the tuned values (0.0075 + round * 0.0006), and the
+ * Fall speeds follow the tuned values (0.0075 + round * 0.0006), scaled by the
+ * global FALL_SPEED_SCALE (25% slower), and the
  * engine adds pause/resume on top.
  *
  * Problems come from the selected content-pack set, not a random generator:

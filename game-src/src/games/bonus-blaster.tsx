@@ -4,6 +4,7 @@ import { ensureAudioContext } from "../kit/audio";
 import { playLaser } from "../kit/sfx";
 import { useContent } from "../content/ContentContext";
 import { shuffled, type BonusWord } from "../content/word-bank";
+import { FALL_SPEED_SCALE } from "../engines/FallingTapper";
 import type { GameContext } from "./types";
 
 type BonusTarget = { id: string; label: string; correct: boolean; x: number; y: number; status: "falling" | "hit" | "wrong" };
@@ -133,7 +134,7 @@ export function BonusLetterBlasterGame({ coins, onBack, onOpenShop, onRecord }: 
       if (!paused && !lockedRef.current && !gameOver) {
         setTargets((current) => {
           const next = current.map((item) => item.status === "falling"
-            ? { ...item, y: item.y + delta * (0.0075 + Math.min(round, 12) * 0.0006) }
+            ? { ...item, y: item.y + delta * (0.0075 + Math.min(round, 12) * 0.0006) * FALL_SPEED_SCALE }
             : item);
           const breached = next.find((item) => item.status === "falling" && item.y >= 83);
           if (breached) void damage("A decoy got through — listen and try the next one!");
