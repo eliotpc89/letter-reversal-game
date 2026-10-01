@@ -70,6 +70,12 @@ export type FallingTapperProps = {
    */
   wrongPauseMs?: number;
   /**
+   * Optional audio for a wrong tap: return the URL of a clip to play shortly
+   * after the tap (e.g. Math Blasters' recorded equation reading). Respects
+   * the sound toggle. Return null for no clip.
+   */
+  wrongAudio?: (wave: Wave, target: TapTarget) => string | null;
+  /**
    * When true, each consecutive correct answer grows the ship's flame and
    * the laser a little, up to a cap at 20 straight hits. Any damage resets
    * the growth. (Math Blasters: true.)
@@ -193,9 +199,22 @@ export function FallingTapper(props: FallingTapperProps) {
     onCorrect, onWrong, powerStreak = false,
     streakGoal = 20, streakBonusCoins = 100,
     victoryTitle = "BONUS UNLOCKED!", onStreakBonus,
-    revealCorrectOnWrong = false, wrongPauseMs = 850,
+    revealCorrectOnWrong = false, wrongPauseMs = 850, wrongAudio,
   } = props;
   const targetAriaLabel = props.targetAriaLabel ?? ((target) => `Target ${target.label}`);
+  const wrongAudioRef = useRef(wrongAudio);
+  wrongAudioRef.current = wrongAudio;
+
+  /** Fire the ship's laser visual + pew at a tapped target. */
+  const fireLaserAt = (target: PlacedTarget) => {
+    if (soundOn) playLaser();
+    const stage = stageRef.current?.getBoundingClientRect();
+    const width = stage?.width ?? 360;
+    const height = stage?.height ?? 560;
+    const dx = (target.x / 100) * width - width * 0.5;
+    const dy = (target.y / 100) * height - height * 0.86;
+    setLaser({ id: Date.now(), angle: Math.atan2(dy, dx), distance: Math.hypot(dx, dy) });
+  };
 
   const stageRef = useRef<HTMLElement | null>(null);
   const timerRef = useRef<number | null>(null);
@@ -358,13 +377,7 @@ export function FallingTapper(props: FallingTapperProps) {
     setBusy(true);
     const wave = waveRef.current;
     if (target.good) {
-      if (soundOn) playLaser();
-      const stage = stageRef.current?.getBoundingClientRect();
-      const width = stage?.width ?? 360;
-      const height = stage?.height ?? 560;
-      const dx = (target.x / 100) * width - width * 0.5;
-      const dy = (target.y / 100) * height - height * 0.86;
-      setLaser({ id: Date.now(), angle: Math.atan2(dy, dx), distance: Math.hypot(dx, dy) });
+      fireLaserAt(target);
       setTargets((current) => current.map((item) => item.key === target.key ? { ...item, status: "hit" } : item));
       setFeedback(hitFeedback);
       const nextStreak = powerStreak ? Math.min(streakRef.current + 1, streakGoal) : 0;
@@ -383,6 +396,16 @@ export function FallingTapper(props: FallingTapperProps) {
         }
       }
     } else {
+      // Every tap fires the ship's laser (visual + pew) — including wrong answers.
+      fireLaserAt(target);
+      // Wrong-answer audio (e.g. the recorded equation reading): play shortly
+      // after the tap so the pew lands first and the words track the reveal.
+      const equationUrl = wave ? wrongAudioRef.current?.(wave, target) ?? null : null;
+      if (equationUrl && soundOn) {
+        window.setTimeout(() => {
+          new Audio(equationUrl).play().catch(() => {});
+        }, 350);
+      }
       // Reveal choreography: the correct bubble glows gold and flies to the
       // "?" glyph; mid-flight the equation morphs "?" into the gold answer;
       // on arrival the bubble dissolves into it.
