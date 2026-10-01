@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { Fragment, cloneElement, isValidElement, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { ensureAudioContext } from "../kit/audio";
 import { playDamage, playJackpot, playLaser, playShieldDown } from "../kit/sfx";
 import { GameShell, type ShellVariant } from "../shell/GameShell";
@@ -140,6 +140,43 @@ function Spaceship() {
 const BREACH_Y = 83;
 
 /**
+ * Swap the prompt's "?" for the revealed answer, styled gold. The prompt can
+ * be a string, a number, an array of parts, or a JSX element (math renders
+ * <>{left} {op} {right} = ?</>), so this walks the node tree and replaces
+ * every "?".
+ */
+function injectAnswer(node: ReactNode, answer: string): ReactNode {
+  if (typeof node === "string" || typeof node === "number") {
+    const text = String(node);
+    if (!text.includes("?")) return node;
+    const parts = text.split("?");
+    return (
+      <>
+        {parts.map((part, i) => (
+          <Fragment key={i}>
+            {part}
+            {i < parts.length - 1 && <span className="prompt-answer-gold">{answer}</span>}
+          </Fragment>
+        ))}
+      </>
+    );
+  }
+  if (Array.isArray(node)) {
+    return (
+      <>
+        {node.map((child, i) => (
+          <Fragment key={i}>{injectAnswer(child, answer)}</Fragment>
+        ))}
+      </>
+    );
+  }
+  if (isValidElement<{ children?: ReactNode }>(node)) {
+    return cloneElement(node, { ...node.props, children: injectAnswer(node.props.children, answer) });
+  }
+  return node;
+}
+
+/**
  * Global fall-speed scale for every falling-targets game (Math Blasters, Odd
  * One Out via this engine, plus Sound Blaster and Bonus Blaster which run
  * their own loops but import this). 0.75 = 25% slower than the per-game tuned
@@ -186,9 +223,9 @@ export function FallingTapper(props: FallingTapperProps) {
   const power = powerStreak ? Math.min(hitStreak, streakGoal) / streakGoal : 0;
   const [gameOver, setGameOver] = useState(false);
   const [busy, setBusy] = useState(false);
-  // Where the revealed correct answer parks: centered on the "?" glyph,
-  // measured at reveal time so it stamps over the question mark on any screen.
-  const [revealPos, setRevealPos] = useState({ left: "50%", top: "20%" });
+  // Clean-equation reveal: on a wrong tap the prompt fades from "a + b = ?"
+  // to "a + b = 5" with the answer in gold. Null when no reveal is showing.
+  const [revealAnswer, setRevealAnswer] = useState<string | null>(null);
   const [soundOn, setSoundOn] = useState(true);
   const [paused, setPaused] = useState(false);
 
@@ -201,6 +238,7 @@ export function FallingTapper(props: FallingTapperProps) {
       setTargets(placeWave(nextWave));
       setFeedback(nextWaveFeedback);
       setLaser(null);
+      setRevealAnswer(null);
       lockedRef.current = false;
       setBusy(false);
       return next;
@@ -336,55 +374,12 @@ export function FallingTapper(props: FallingTapperProps) {
         }
       }
     } else {
-      // Anchor the reveal on the "?" glyph: measure the last character of the
-      // prompt with a Range and center the bubble over it, so the gold answer
-      // visibly stamps out the question mark. Falls back to the prompt's
-      // right end if the prompt isn't a plain text node.
-      try {
-        const stageEl = stageRef.current;
-        const h1 = stageEl?.querySelector("#tap-prompt");
-        const sample = stageEl?.querySelector(".answer-target");
-        if (stageEl && h1 && sample) {
-          const stageBox = stageEl.getBoundingClientRect();
-          const sampleBox = sample.getBoundingClientRect();
-          // The prompt renders as several adjacent text nodes (e.g. "7"," ",
-          // "+"," ","1"," = ?"), so find the last non-blank text node and
-          // measure its final character — the "?".
-          let gx = 0, gy = 0, gw = 0, gh = 0, found = false;
-          const textNodes: Text[] = [];
-          h1.childNodes.forEach((n) => {
-            if (n.nodeType === Node.TEXT_NODE && n.textContent) textNodes.push(n as Text);
-          });
-          for (let i = textNodes.length - 1; i >= 0; i--) {
-            const node = textNodes[i];
-            const t = node?.textContent ?? "";
-            if (!node || t.trim().length === 0) continue;
-            const range = document.createRange();
-            range.setStart(node, t.length - 1);
-            range.setEnd(node, t.length);
-            const gr = range.getBoundingClientRect();
-            gx = gr.left; gy = gr.top; gw = gr.width; gh = gr.height; found = true;
-            break;
-          }
-          if (!found) {
-            const hr = h1.getBoundingClientRect();
-            gx = hr.right - hr.height * 0.7; gy = hr.top; gw = hr.height * 0.7; gh = hr.height;
-          }
-          if (stageBox.width > 0 && stageBox.height > 0 && sampleBox.height > 0) {
-            const cx = gx + gw / 2;
-            const cy = gy + gh / 2;
-            const leftPct = (cx - stageBox.left) / stageBox.width * 100;
-            // .answer-target uses translate(-50%, 0): left is the center, top is the top edge.
-            const topPct = (cy - stageBox.top - sampleBox.height / 2) / stageBox.height * 100;
-            const clampPct = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
-            setRevealPos({
-              left: `${clampPct(leftPct, 5, 95).toFixed(1)}%`,
-              top: `${clampPct(topPct, 1, 85).toFixed(1)}%`,
-            });
-          }
-        }
-      } catch {
-        // Keep the fallback position.
+      // Clean-equation reveal: gold-glow the correct bubble in place and fade
+      // the prompt into "a + b = 5" with a navy-outlined gold answer, so the
+      // whole equation stays clear and readable.
+      if (revealCorrectOnWrong) {
+        const good = targets.find((item) => item.good && item.status === "falling");
+        if (good) setRevealAnswer(good.label);
       }
       setTargets((current) => current.map((item) => {
         if (item.key === target.key) return { ...item, status: "wrong" as const };
@@ -445,15 +440,13 @@ export function FallingTapper(props: FallingTapperProps) {
     fullscreenClass={shell.fullscreenClass}
   >
     <main className="math-main">
-      <section ref={stageRef} className="math-stage" aria-labelledby="tap-prompt" style={{ "--power": power, "--dmg": startLives - lives } as CSSProperties}>
+      <section ref={stageRef} className={`math-stage${revealAnswer ? " reveal-focus" : ""}`} aria-labelledby="tap-prompt" style={{ "--power": power, "--dmg": startLives - lives } as CSSProperties}>
         <div className="math-stars" aria-hidden="true" />
-        <div className="math-prompt"><span>{promptKicker}</span><h1 id="tap-prompt">{wave.prompt}</h1><p>{feedback}</p></div>
+        <div className="math-prompt"><span>{promptKicker}</span><h1 id="tap-prompt" className={revealAnswer ? "answered" : ""}>{revealAnswer ? injectAnswer(wave.prompt, revealAnswer) : wave.prompt}</h1><p>{feedback}</p></div>
         {targets.map((target) => <button
           key={target.key}
           className={`answer-target ${target.status}`}
-          style={target.status === "revealed"
-            ? { left: revealPos.left, top: revealPos.top }
-            : { left: `${target.x}%`, top: `${target.y}%` }}
+          style={{ left: `${target.x}%`, top: `${target.y}%` }}
           type="button"
           onPointerDown={() => void fire(target)}
           disabled={busy || gameOver || target.status !== "falling"}
