@@ -567,7 +567,8 @@ button { font: inherit; }
 /* Wrong-tap reveal (Math Blasters): the correct bubble gets a pulsing gold glow
    in place while the equation fades into its clean answered form. left/top
    transition on this class is kept so a future reposition still animates. */
-.answer-target.revealed { transition: left .45s ease, top .45s ease, filter .12s ease, opacity .15s ease; z-index: 6; border-color: #8a6d00; background: radial-gradient(circle at 50% 42%, #fffbe8 0 34%, #ffe98a 35% 67%, #f5b301 100%); animation: correct-reveal-glow 1s ease-in-out infinite; pointer-events: none; }
+.answer-target.revealed { transition: left .45s ease, top .45s ease, filter .12s ease, opacity .25s ease, transform .25s ease; z-index: 6; border-color: #8a6d00; background: radial-gradient(circle at 50% 42%, #fffbe8 0 34%, #ffe98a 35% 67%, #f5b301 100%); animation: correct-reveal-glow 1s ease-in-out infinite; pointer-events: none; }
+.answer-target.revealed.absorbed { opacity: 0; transform: translate(-50%, 0) scale(.35); }
 @keyframes correct-reveal-glow { 0%, 100% { box-shadow: 0 0 18px 5px rgba(255,200,0,.8), 0 0 44px 12px rgba(255,170,0,.45); } 50% { box-shadow: 0 0 32px 10px rgba(255,210,0,.95), 0 0 72px 20px rgba(255,170,0,.6); } }
 /* Clean-equation reveal: the prompt fades from "a + b = ?" into the fully
    answered equation, the answer in gold with a navy outline consistent with
