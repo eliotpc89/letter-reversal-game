@@ -1,4 +1,5 @@
 import { Fragment, cloneElement, isValidElement, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useAudioClip } from "../kit/useAudioClip";
 import { ensureAudioContext } from "../kit/audio";
 import { playDamage, playJackpot, playLaser, playShieldDown } from "../kit/sfx";
 import { GameShell, type ShellVariant } from "../shell/GameShell";
@@ -15,6 +16,8 @@ export type Wave = {
   /** Shown in the prompt lane, e.g. the equation. */
   prompt: ReactNode;
   targets: TapTarget[];
+  /** Optional spoken prompt, repeated halfway through the falling wave. */
+  audio?: string;
 };
 
 type PlacedTarget = TapTarget & {
@@ -255,6 +258,27 @@ export function FallingTapper(props: FallingTapperProps) {
   const absorbTimers = useRef<number[]>([]);
   const [soundOn, setSoundOn] = useState(true);
   const [paused, setPaused] = useState(false);
+  const playClip = useAudioClip();
+  const revealAudioTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!wave.audio || paused || gameOver || busy || !soundOn) return;
+    void playClip(wave.audio).catch(() => {});
+    const speed = speedForRound(round) * FALL_SPEED_SCALE;
+    const halfwayMs = Math.max(1200, Math.round(((BREACH_Y - 27) / speed) / 2));
+    const timer = window.setTimeout(() => {
+      if (!lockedRef.current && !pausedRef.current) void playClip(wave.audio!).catch(() => {});
+    }, halfwayMs);
+    return () => { window.clearTimeout(timer); playClip.stop(); };
+  }, [wave, round, paused, gameOver, busy, soundOn, playClip, speedForRound]);
+
+  useEffect(() => {
+    if (paused || !soundOn) {
+      if (revealAudioTimerRef.current !== null) window.clearTimeout(revealAudioTimerRef.current);
+      revealAudioTimerRef.current = null;
+      playClip.stop();
+    }
+  }, [paused, soundOn, playClip]);
 
   const nextRound = useCallback(() => {
     setRound((current) => {
@@ -372,7 +396,9 @@ export function FallingTapper(props: FallingTapperProps) {
   useEffect(() => () => {
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
     absorbTimers.current.forEach((id) => window.clearTimeout(id));
-  }, []);
+    if (revealAudioTimerRef.current !== null) window.clearTimeout(revealAudioTimerRef.current);
+    playClip.stop();
+  }, [playClip]);
 
   const fire = async (target: PlacedTarget) => {
     if (busy || paused || lockedRef.current || gameOver) return;
@@ -406,8 +432,10 @@ export function FallingTapper(props: FallingTapperProps) {
       // after the tap so the pew lands first and the words track the reveal.
       const equationUrl = wave ? wrongAudioRef.current?.(wave, target) ?? null : null;
       if (equationUrl && soundOn) {
-        window.setTimeout(() => {
-          new Audio(equationUrl).play().catch(() => {});
+        if (revealAudioTimerRef.current !== null) window.clearTimeout(revealAudioTimerRef.current);
+        revealAudioTimerRef.current = window.setTimeout(() => {
+          revealAudioTimerRef.current = null;
+          if (!pausedRef.current) void playClip(equationUrl).catch(() => {});
         }, 350);
       }
       // Reveal choreography: the correct bubble glows gold and flies to the
@@ -483,6 +511,9 @@ export function FallingTapper(props: FallingTapperProps) {
   });
 
   const repair = () => {
+    if (revealAudioTimerRef.current !== null) window.clearTimeout(revealAudioTimerRef.current);
+    revealAudioTimerRef.current = null;
+    playClip.stop();
     const first = makeWave(1);
     waveRef.current = first;
     livesRef.current = startLives;
@@ -510,7 +541,7 @@ export function FallingTapper(props: FallingTapperProps) {
   const hud = <>
     <div className="math-hud-block math-score-block"><span>Score</span><strong>{score}</strong><small>R{round}</small></div>
     <div className="math-hud-block shield-meter"><span>Shields</span><strong>{Array.from({ length: startLives }, (_, pip) => <i key={pip} className={pip < lives ? "active" : ""}>◆</i>)}</strong></div>
-    {powerStreak && <div className="math-hud-block streak-meter"><span>Bonus</span><div className="streak-bar" role="progressbar" aria-valuenow={hitStreak} aria-valuemin={0} aria-valuemax={streakGoal} aria-label={`${hitStreak} of ${streakGoal} correct toward the 200-coin bonus`}><i style={{ width: `${(hitStreak / streakGoal) * 100}%` }} /></div><small>{hitStreak}/{streakGoal}</small></div>}
+    {powerStreak && <div className="math-hud-block streak-meter"><span>Bonus</span><div className="streak-bar" role="progressbar" aria-valuenow={hitStreak} aria-valuemin={0} aria-valuemax={streakGoal} aria-label={`${hitStreak} of ${streakGoal} correct toward the ${streakBonusCoins}-coin bonus`}><i style={{ width: `${(hitStreak / streakGoal) * 100}%` }} /></div><small>{hitStreak}/{streakGoal}</small></div>}
   </>;
 
   const pauseButton = <button className="math-pause" type="button" onClick={togglePause} disabled={gameOver} aria-label={paused ? "Resume game" : "Pause game"}><span aria-hidden="true">{paused ? "▶" : "Ⅱ"}</span><small>{paused ? "Resume" : "Pause"}</small></button>;

@@ -17,7 +17,7 @@ export type GameContext = {
   onRecord: (correct: boolean, detail?: { word: string; vowel: Vowel } | { problem: string }) => Promise<void>;
   /**
    * Award bonus coins outside the per-answer reward/penalty flow
-   * (Math Blasters: +100 for a 20-answer flawless streak).
+   * (Math Blasters and Sound Blaster: +200 for 20 correct answers per run).
    */
   awardBonus: (coins: number) => Promise<void>;
   /** Bed game only: letter attempts need their target letter. */

@@ -131,8 +131,8 @@ export function App() {
     mutationFn: (entry: { gameId: PracticeGameId; correct: boolean; word?: { word: string; vowel: Vowel }; problem?: string }) => api.recordPracticeAttempt(entry),
     onSuccess: (result, entry) => {
       queryClient.setQueryData(["game-state"], result.state);
-      // Math Blasters owns its laser/damage sounds and local mute toggle.
-      if (entry.gameId === "math-blasters") {
+      // Shared blaster engine owns combat sounds and its local mute toggle.
+      if (entry.gameId === "math-blasters" || entry.gameId === "sound-blaster") {
         if (entry.correct) setConfettiKey((value) => value + 1);
       } else celebrate(entry.correct);
     },
@@ -153,7 +153,7 @@ export function App() {
     onSuccess: (result) => {
       queryClient.setQueryData(["game-state"], result.state);
       setConfettiKey((value) => value + 1);
-      playJackpot();
+      if (view !== "math-blasters" && view !== "sound-blaster") playJackpot();
     },
   });
 
