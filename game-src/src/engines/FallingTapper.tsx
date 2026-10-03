@@ -1,6 +1,6 @@
 import { Fragment, cloneElement, isValidElement, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useAudioClip } from "../kit/useAudioClip";
-import { ensureAudioContext } from "../kit/audio";
+import { closeSharedAudio, ensureAudioContext } from "../kit/audio";
 import { playDamage, playJackpot, playLaser, playShieldDown } from "../kit/sfx";
 import { GameShell, type ShellVariant } from "../shell/GameShell";
 
@@ -258,6 +258,19 @@ export function FallingTapper(props: FallingTapperProps) {
   const absorbTimers = useRef<number[]>([]);
   const [soundOn, setSoundOn] = useState(true);
   const [paused, setPaused] = useState(false);
+  /**
+   * Sound toggle doubles as the audio recovery switch: turning sound back on
+   * drops the shared AudioContext and builds a fresh one inside this tap
+   * gesture, which unwedges the occasional iOS audio-session death without
+   * a browser restart.
+   */
+  const toggleSound = () => {
+    if (!soundOn) {
+      closeSharedAudio();
+      ensureAudioContext();
+    }
+    setSoundOn((value) => !value);
+  };
   const playClip = useAudioClip();
   const revealAudioTimerRef = useRef<number | null>(null);
 
@@ -448,9 +461,11 @@ export function FallingTapper(props: FallingTapperProps) {
       if (revealCorrectOnWrong) {
         const good = targets.find((item) => item.good && item.status === "falling");
         if (good) {
-          // Measure the "?" glyph: the prompt renders as several adjacent
-          // text nodes (e.g. "7"," ","+"," ","1"," = ?"), so scan for the
-          // last non-blank text node and take its final character.
+          // Reveal target measurement. First choice: an explicit
+          // [data-reveal-anchor] inside the prompt (Sound Blasters: the vowel
+          // letter in the gold word) — measured directly. Fallback: the "?"
+          // glyph via Range (Math Blasters renders several adjacent text
+          // nodes, e.g. "7"," ","+"," ","1"," = ?").
           try {
             const stageEl = stageRef.current;
             const h1 = stageEl?.querySelector("#tap-prompt");
@@ -459,20 +474,26 @@ export function FallingTapper(props: FallingTapperProps) {
               const stageBox = stageEl.getBoundingClientRect();
               const sampleBox = sample.getBoundingClientRect();
               let gx = 0, gy = 0, gw = 0, gh = 0, found = false;
-              const textNodes: Text[] = [];
-              h1.childNodes.forEach((n) => {
-                if (n.nodeType === Node.TEXT_NODE && n.textContent) textNodes.push(n as Text);
-              });
-              for (let i = textNodes.length - 1; i >= 0; i--) {
-                const node = textNodes[i];
-                const t = node?.textContent ?? "";
-                if (!node || t.trim().length === 0) continue;
-                const range = document.createRange();
-                range.setStart(node, t.length - 1);
-                range.setEnd(node, t.length);
-                const gr = range.getBoundingClientRect();
-                gx = gr.left; gy = gr.top; gw = gr.width; gh = gr.height; found = true;
-                break;
+              const anchor = h1.querySelector("[data-reveal-anchor]");
+              if (anchor) {
+                const ar = anchor.getBoundingClientRect();
+                gx = ar.left; gy = ar.top; gw = ar.width; gh = ar.height; found = true;
+              } else {
+                const textNodes: Text[] = [];
+                h1.childNodes.forEach((n) => {
+                  if (n.nodeType === Node.TEXT_NODE && n.textContent) textNodes.push(n as Text);
+                });
+                for (let i = textNodes.length - 1; i >= 0; i--) {
+                  const node = textNodes[i];
+                  const t = node?.textContent ?? "";
+                  if (!node || t.trim().length === 0) continue;
+                  const range = document.createRange();
+                  range.setStart(node, t.length - 1);
+                  range.setEnd(node, t.length);
+                  const gr = range.getBoundingClientRect();
+                  gx = gr.left; gy = gr.top; gw = gr.width; gh = gr.height; found = true;
+                  break;
+                }
               }
               if (!found) {
                 const hr = h1.getBoundingClientRect();
@@ -583,7 +604,7 @@ export function FallingTapper(props: FallingTapperProps) {
         {paused && !gameOver && <div className="math-paused" role="status"><strong>PAUSED</strong><span>Tap resume when you’re ready.</span></div>}
         {gameOver && <div className="math-game-over" role="status"><strong>{victory ? victoryTitle : gameOverTitle}</strong>{victory && <span className="victory-bonus">Bonus: +{streakBonusCoins} coins!</span>}<span>Score: {score}</span><button type="button" onClick={repair}>{repairLabel}</button></div>}
       </section>
-      <div className="math-controls"><p>{controlsNote}</p><button type="button" onClick={() => { if (!soundOn) ensureAudioContext(); setSoundOn((value) => !value); }}>{soundOn ? "🔊 Sounds on" : "🔇 Sounds off"}</button></div>
+      <div className="math-controls"><p>{controlsNote}</p><button type="button" onClick={toggleSound}>{soundOn ? "🔊 Sounds on" : "🔇 Sounds off"}</button></div>
     </main>
   </GameShell>;
 }

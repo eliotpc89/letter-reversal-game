@@ -577,6 +577,14 @@ button { font: inherit; }
 #tap-prompt.answered { animation: prompt-answer-in .5s ease both; }
 @keyframes prompt-answer-in { from { opacity: 0; transform: translateY(8px) scale(.96); } to { opacity: 1; transform: none; } }
 #tap-prompt .prompt-answer-gold { color: #ffc933; -webkit-text-stroke: 2.5px #14213d; paint-order: stroke fill; text-shadow: 0 3px 0 rgba(6,16,39,.9), 0 0 22px rgba(255,200,0,.55); }
+/* Sound Blasters: the whole word spelled in gold. On a reveal the vowel
+   letter (marked [data-reveal-anchor]) pulses as the gold bubble dissolves
+   into it; the prompt itself must NOT blink, so the whole-prompt fade above
+   is suppressed whenever an anchor is present. */
+#tap-prompt .prompt-word-gold { color: #ffc933; -webkit-text-stroke: 2.5px #14213d; paint-order: stroke fill; text-shadow: 0 3px 0 rgba(6,16,39,.9), 0 0 18px rgba(255,200,0,.45); }
+#tap-prompt.answered:has([data-reveal-anchor]) { animation: none; }
+#tap-prompt.answered [data-reveal-anchor] { display: inline-block; animation: vowel-anchor-pulse .7s ease both; }
+@keyframes vowel-anchor-pulse { 0% { transform: scale(1); } 35% { transform: scale(1.4); text-shadow: 0 0 28px rgba(255,210,0,.95), 0 3px 0 rgba(6,16,39,.9); } 100% { transform: scale(1); } }
 .math-stage.reveal-focus .answer-target.falling { opacity: .3; }
 .math-laser { position: absolute; z-index: 7; left: 50%; top: 86%; width: calc(80px + var(--power, 0) * 80px); height: calc(14px + var(--power, 0) * 14px); transform-origin: center; transform: translate(-50%, -50%) rotate(var(--shot-angle)) translateX(0) scaleX(.35); border-radius: 999px; background: linear-gradient(90deg, transparent 0%, #35eaff 20%, #fff 52%, #35eaff 84%, transparent 100%); box-shadow: 0 0 5px 2px #fff, 0 0 13px 4px rgba(53,234,255,.95); animation: laser-shot .48s cubic-bezier(.18,.78,.25,1) both; pointer-events: none; }
 .math-laser::after { content: ""; position: absolute; right: -2px; top: 50%; width: calc(18px + var(--power, 0) * 14px); height: calc(18px + var(--power, 0) * 14px); transform: translateY(-50%); border-radius: 50%; background: #fff; box-shadow: 0 0 8px 4px #35eaff; }

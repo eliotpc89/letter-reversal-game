@@ -24,8 +24,17 @@ export function SoundBlasterGame({ coins, onBack, onOpenShop, onRecord, awardBon
     const choices = pool.filter((item) => item.word !== wordRef.current?.word);
     const word = shuffled(choices.length ? choices : pool)[0] ?? bank.DEFAULT_WORD;
     wordRef.current = word;
+    // The whole word spelled in gold; the vowel letter carries the reveal
+    // anchor the gold bubble flies to on a wrong answer.
+    const vowelAt = Math.max(0, word.vowelIndex);
     return {
-      prompt: "Short vowel: ?",
+      prompt: (
+        <span className="prompt-word-gold">
+          {word.word.slice(0, vowelAt)}
+          <span data-reveal-anchor>{word.word.slice(vowelAt, vowelAt + 1)}</span>
+          {word.word.slice(vowelAt + 1)}
+        </span>
+      ),
       audio: word.audio,
       targets: ["o", "u"].map((vowel) => ({
         key: `r${round}-${vowel}`,
