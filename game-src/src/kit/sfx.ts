@@ -12,6 +12,14 @@ function running(context: Ctx): context is AudioContext {
   return !!context && context.state === "running";
 }
 
+/** Resume can complete after the gesture callback; don't drop that first effect. */
+function whenRunning(context: Ctx, effect: (ctx: AudioContext) => void) {
+  const ctx = context ?? ensureAudioContext();
+  if (!ctx || ctx.state === "closed") return;
+  if (running(ctx)) effect(ctx);
+  else void ctx.resume().then(() => { if (running(ctx)) effect(ctx); }).catch(() => {});
+}
+
 function tone(
   context: AudioContext,
   opts: {
@@ -67,16 +75,18 @@ export function playWhomp(context?: Ctx) {
 
 /** Laser fired at a falling target. */
 export function playLaser(context?: Ctx) {
-  const ctx = context ?? ensureAudioContext();
-  if (!running(ctx)) return;
-  tone(ctx, { type: "square", from: 1500, to: 240, dur: 0.2, vol: 0.13 });
+  whenRunning(context, (ctx) => {
+    tone(ctx, { type: "square", from: 1500, to: 180, dur: 0.26, vol: 0.13 });
+    tone(ctx, { type: "triangle", from: 750, to: 90, dur: 0.3, vol: 0.1 });
+  });
 }
 
 /** Ship takes damage. */
 export function playDamage(context?: Ctx) {
-  const ctx = context ?? ensureAudioContext();
-  if (!running(ctx)) return;
-  tone(ctx, { type: "sawtooth", from: 180, to: 55, dur: 0.38, vol: 0.16 });
+  whenRunning(context, (ctx) => {
+    tone(ctx, { type: "sawtooth", from: 180, to: 45, dur: 0.38, vol: 0.16 });
+    tone(ctx, { type: "square", from: 85, to: 35, at: 0.06, dur: 0.28, vol: 0.1 });
+  });
 }
 
 /** All shields gone — game over sting. */

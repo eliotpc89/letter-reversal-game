@@ -23,7 +23,7 @@ type PlacedTarget = TapTarget & {
   status: "falling" | "hit" | "wrong" | "missed" | "revealed";
 };
 
-type Laser = { id: number; angle: number; distance: number };
+type Laser = { id: number; angle: number; distance: number; x: number; y: number };
 
 export type FallingTapperProps = {
   shell: {
@@ -76,9 +76,8 @@ export type FallingTapperProps = {
    */
   wrongAudio?: (wave: Wave, target: TapTarget) => string | null;
   /**
-   * When true, each consecutive correct answer grows the ship's flame and
-   * the laser a little, up to a cap at 20 straight hits. Any damage resets
-   * the growth. (Math Blasters: true.)
+   * When true, each shot grows the ship's flame and laser, up to 20 shots.
+   * Repair resets visual power; bonus progress still counts correct answers.
    */
   powerStreak?: boolean;
   /**
@@ -117,7 +116,7 @@ function placeWave(wave: Wave): PlacedTarget[] {
 
 function Spaceship() {
   return <div className="math-ship" aria-hidden="true">
-    <svg className="ship-flame" viewBox="0 0 112 56" aria-hidden="true">
+    <svg className="ship-flame" viewBox="0 0 112 56" preserveAspectRatio="none" aria-hidden="true">
       <defs>
         <linearGradient id="shipFlameGrad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#fff" />
@@ -211,9 +210,13 @@ export function FallingTapper(props: FallingTapperProps) {
     const stage = stageRef.current?.getBoundingClientRect();
     const width = stage?.width ?? 360;
     const height = stage?.height ?? 560;
-    const dx = (target.x / 100) * width - width * 0.5;
-    const dy = (target.y / 100) * height - height * 0.86;
-    setLaser({ id: Date.now(), angle: Math.atan2(dy, dx), distance: Math.hypot(dx, dy) });
+    const ship = stageRef.current?.querySelector(".math-ship svg:not(.ship-flame)")?.getBoundingClientRect();
+    const x = ship && stage ? ship.left + ship.width / 2 - stage.left : width * 0.5;
+    const y = ship && stage ? ship.top + 5 - stage.top : height * 0.86;
+    const dx = (target.x / 100) * width - x;
+    const dy = (target.y / 100) * height - y;
+    if (powerStreak) setShotCount((count) => Math.min(count + 1, 20));
+    setLaser({ id: Date.now(), angle: Math.atan2(dy, dx), distance: Math.hypot(dx, dy), x, y });
   };
 
   const stageRef = useRef<HTMLElement | null>(null);
@@ -235,11 +238,12 @@ export function FallingTapper(props: FallingTapperProps) {
   const [feedback, setFeedback] = useState(introFeedback);
   const [laser, setLaser] = useState<Laser | null>(null);
   const [hitStreak, setHitStreak] = useState(0);
+  const [shotCount, setShotCount] = useState(0);
   const streakRef = useRef(0);
   const [victory, setVictory] = useState(false);
   const victoryRef = useRef(false);
   const [flashTick, setFlashTick] = useState(0);
-  const power = powerStreak ? Math.min(hitStreak, streakGoal) / streakGoal : 0;
+  const power = powerStreak ? Math.sqrt(shotCount / 20) : 0;
   const [gameOver, setGameOver] = useState(false);
   const [busy, setBusy] = useState(false);
   // Wrong-answer reveal choreography (Math Blasters): the correct bubble glows
@@ -494,6 +498,7 @@ export function FallingTapper(props: FallingTapperProps) {
     setLaser(null);
     streakRef.current = 0;
     setHitStreak(0);
+    setShotCount(0);
     victoryRef.current = false;
     setVictory(false);
     setFlashTick(0);
@@ -536,14 +541,14 @@ export function FallingTapper(props: FallingTapperProps) {
           disabled={busy || gameOver || target.status !== "falling"}
           aria-label={targetAriaLabel(target)}
         >{target.label}</button>)}
-        {laser && <span key={laser.id} className="math-laser" style={{ "--shot-angle": `${laser.angle}rad`, "--shot-distance": `${laser.distance}px` } as CSSProperties} aria-hidden="true" />}
+        {laser && <span key={laser.id} className="math-laser" style={{ left: laser.x, top: laser.y, "--shot-angle": `${laser.angle}rad`, "--shot-distance": `${laser.distance}px` } as CSSProperties} aria-hidden="true" />}
         <div className="ship-deck"><Spaceship /></div>
         <div className="damage-vignette" aria-hidden="true" />
         {flashTick > 0 && <div key={flashTick} className="damage-flash" aria-hidden="true" />}
         {paused && !gameOver && <div className="math-paused" role="status"><strong>PAUSED</strong><span>Tap resume when you’re ready.</span></div>}
         {gameOver && <div className="math-game-over" role="status"><strong>{victory ? victoryTitle : gameOverTitle}</strong>{victory && <span className="victory-bonus">Bonus: +{streakBonusCoins} coins!</span>}<span>Score: {score}</span><button type="button" onClick={repair}>{repairLabel}</button></div>}
       </section>
-      <div className="math-controls"><p>{controlsNote}</p><button type="button" onClick={() => setSoundOn((value) => !value)}>{soundOn ? "🔊 Sounds on" : "🔇 Sounds off"}</button></div>
+      <div className="math-controls"><p>{controlsNote}</p><button type="button" onClick={() => { if (!soundOn) ensureAudioContext(); setSoundOn((value) => !value); }}>{soundOn ? "🔊 Sounds on" : "🔇 Sounds off"}</button></div>
     </main>
   </GameShell>;
 }

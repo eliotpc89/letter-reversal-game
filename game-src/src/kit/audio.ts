@@ -12,8 +12,8 @@ export function ensureAudioContext(): AudioContext | null {
     (window as typeof window & { webkitAudioContext?: typeof AudioContext })
       .webkitAudioContext;
   if (!AudioCtx) return null;
-  if (!shared) shared = new AudioCtx();
-  if (shared.state === "suspended") void shared.resume();
+  if (!shared || shared.state === "closed") shared = new AudioCtx();
+  if (shared.state !== "running") void shared.resume().catch(() => {});
   return shared;
 }
 
