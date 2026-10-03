@@ -508,7 +508,7 @@ button { font: inherit; }
 .missed-word-chip { display: inline-flex; align-items: baseline; gap: 5px; padding: 6px 8px; border: 2px solid var(--border); border-radius: 9px 12px 8px 10px; background: color-mix(in srgb, var(--surface) 78%, var(--accent)); color: var(--text); }
 .missed-word-chip b { font-size: 14px; }
 .missed-word-chip small { color: var(--dim); font-size: 10px; font-weight: 850; }
-.math-header { position: sticky; z-index: 20; top: 0; min-height: 70px; padding: 7px 12px 9px; border-bottom: 3px solid var(--text); background: color-mix(in srgb, var(--bg) 96%, transparent); display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto auto; align-items: center; gap: 7px; }
+.math-header { position: sticky; z-index: 20; top: 0; min-height: 70px; padding: 7px 12px 9px; border-bottom: 3px solid var(--text); background: color-mix(in srgb, var(--bg) 96%, transparent); display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto auto auto; align-items: center; gap: 7px; }
 .math-header > div { min-width: 0; }
 .math-title { display: flex; min-width: 0; flex-direction: column; }
 .math-title span { overflow: hidden; color: #2a75bb; font-size: 9px; font-weight: 950; letter-spacing: .04em; text-transform: uppercase; text-overflow: ellipsis; white-space: nowrap; }
@@ -577,12 +577,13 @@ button { font: inherit; }
 #tap-prompt.answered { animation: prompt-answer-in .5s ease both; }
 @keyframes prompt-answer-in { from { opacity: 0; transform: translateY(8px) scale(.96); } to { opacity: 1; transform: none; } }
 #tap-prompt .prompt-answer-gold { color: #ffc933; -webkit-text-stroke: 2.5px #14213d; paint-order: stroke fill; text-shadow: 0 3px 0 rgba(6,16,39,.9), 0 0 22px rgba(255,200,0,.55); }
-/* Sound Blasters: the whole word spelled in gold. On a reveal the vowel
-   letter (marked [data-reveal-anchor]) pulses as the gold bubble dissolves
-   into it; the prompt itself must NOT blink, so the whole-prompt fade above
-   is suppressed whenever an anchor is present. */
+/* Sound Blasters: on a miss the "?" morphs into the whole word in gold. The
+   vowel letter (marked [data-reveal-anchor]) pulses as the gold bubble
+   dissolves into it. A hidden copy of the reveal prompt is rendered
+   pre-reveal so the anchor can be measured for the bubble's flight. */
+#tap-prompt { position: relative; }
 #tap-prompt .prompt-word-gold { color: #ffc933; -webkit-text-stroke: 2.5px #14213d; paint-order: stroke fill; text-shadow: 0 3px 0 rgba(6,16,39,.9), 0 0 18px rgba(255,200,0,.45); }
-#tap-prompt.answered:has([data-reveal-anchor]) { animation: none; }
+#tap-prompt .reveal-measure { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; visibility: hidden; pointer-events: none; }
 #tap-prompt.answered [data-reveal-anchor] { display: inline-block; animation: vowel-anchor-pulse .7s ease both; }
 @keyframes vowel-anchor-pulse { 0% { transform: scale(1); } 35% { transform: scale(1.4); text-shadow: 0 0 28px rgba(255,210,0,.95), 0 3px 0 rgba(6,16,39,.9); } 100% { transform: scale(1); } }
 .math-stage.reveal-focus .answer-target.falling { opacity: .3; }
@@ -615,17 +616,20 @@ button { font: inherit; }
 @keyframes answer-wrong { 0%,100% { translate: -50% 0; } 25% { translate: calc(-50% - 8px) 0; } 55% { translate: calc(-50% + 8px) 0; } 78% { translate: calc(-50% - 4px) 0; } }
 
 @media (max-width: 420px) {
-  .math-header { min-height: 54px; padding: 4px 6px 6px; gap: 4px; }
+  .math-header { min-height: 54px; padding: 4px 6px 6px; gap: 3px; }
   .math-header .back-button { width: 38px; height: 38px; border-width: 2px; box-shadow: 0 3px 0 var(--text); font-size: 22px; }
   .math-title span { font-size: 7px; }
-  .math-title strong { font-size: 14px; }
+  .math-title strong { font-size: 12px; }
   .math-hud-block { min-height: 38px; padding: 3px 4px; border-width: 2px; }
   .math-hud-block > span { font-size: 7px; }
   .math-hud-block > strong { font-size: 14px; }
-  .math-score-block { min-width: 42px; }
+  .math-score-block { min-width: 38px; }
   .math-score-block small { right: 3px; bottom: 3px; font-size: 7px; }
-  .math-header .shield-meter { grid-column: auto; min-width: 55px; }
+  .math-header .shield-meter { grid-column: auto; min-width: 48px; }
   .math-header .shield-meter strong { gap: 1px; font-size: 10px; }
+  .math-header .streak-meter { min-width: 0; }
+  .math-header .streak-bar { width: 44px; }
+  .math-header .streak-meter small { font-size: 8px; }
   .math-shop { min-width: 42px; min-height: 42px; box-shadow: 0 2px 0 var(--text); }
   .math-shop .coin { width: 14px; height: 14px; font-size: 7px; }
   .math-shop strong { font-size: 12px; }

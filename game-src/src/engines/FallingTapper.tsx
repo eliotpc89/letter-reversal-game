@@ -15,6 +15,13 @@ export type TapTarget = {
 export type Wave = {
   /** Shown in the prompt lane, e.g. the equation. */
   prompt: ReactNode;
+  /**
+   * Optional replacement for the prompt shown on a wrong-answer reveal
+   * (e.g. Sound Blasters: the full word in gold). When set, it replaces the
+   * prompt instead of the default "?" morph, and a hidden copy is rendered
+   * pre-reveal so the [data-reveal-anchor] inside it can be measured.
+   */
+  revealPrompt?: ReactNode;
   targets: TapTarget[];
   /** Optional spoken prompt, repeated halfway through the falling wave. */
   audio?: string;
@@ -585,7 +592,7 @@ export function FallingTapper(props: FallingTapperProps) {
     <main className="math-main">
       <section ref={stageRef} className={`math-stage${revealPos || revealAnswer ? " reveal-focus" : ""}`} aria-labelledby="tap-prompt" style={{ "--power": power, "--dmg": startLives - lives } as CSSProperties}>
         <div className="math-stars" aria-hidden="true" />
-        <div className="math-prompt"><span>{promptKicker}</span><h1 id="tap-prompt" className={revealAnswer ? "answered" : ""}>{revealAnswer ? injectAnswer(wave.prompt, revealAnswer) : wave.prompt}</h1><p>{feedback}</p></div>
+        <div className="math-prompt"><span>{promptKicker}</span><h1 id="tap-prompt" className={revealAnswer ? "answered" : ""}>{revealAnswer ? (wave.revealPrompt ?? injectAnswer(wave.prompt, revealAnswer)) : wave.prompt}{!revealAnswer && wave.revealPrompt && <span aria-hidden="true" className="reveal-measure">{wave.revealPrompt}</span>}</h1><p>{feedback}</p></div>
         {targets.map((target) => <button
           key={target.key}
           className={`answer-target ${target.status}${target.status === "revealed" && absorbed ? " absorbed" : ""}`}

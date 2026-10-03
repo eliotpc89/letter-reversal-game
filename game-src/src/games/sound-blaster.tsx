@@ -24,11 +24,13 @@ export function SoundBlasterGame({ coins, onBack, onOpenShop, onRecord, awardBon
     const choices = pool.filter((item) => item.word !== wordRef.current?.word);
     const word = shuffled(choices.length ? choices : pool)[0] ?? bank.DEFAULT_WORD;
     wordRef.current = word;
-    // The whole word spelled in gold; the vowel letter carries the reveal
-    // anchor the gold bubble flies to on a wrong answer.
+    // Pre-reveal the prompt is just "?": showing the word upfront would give
+    // away the vowel. On a miss the whole word appears in gold, and the vowel
+    // letter carries the reveal anchor the gold bubble flies to.
     const vowelAt = Math.max(0, word.vowelIndex);
     return {
-      prompt: (
+      prompt: "?",
+      revealPrompt: (
         <span className="prompt-word-gold">
           {word.word.slice(0, vowelAt)}
           <span data-reveal-anchor>{word.word.slice(vowelAt, vowelAt + 1)}</span>
@@ -71,6 +73,6 @@ export function SoundBlasterGame({ coins, onBack, onOpenShop, onRecord, awardBon
     streakBonusCoins={200}
     victoryTitle="BONUS UNLOCKED!"
     onStreakBonus={awardBonus}
-    controlsNote="The word plays at the start and halfway through. A miss reveals the gold vowel and repeats the word."
+    controlsNote="The word plays at the start and halfway through. A miss reveals the word in gold and repeats it."
   />;
 }
