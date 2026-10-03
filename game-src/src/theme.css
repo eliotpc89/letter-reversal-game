@@ -583,7 +583,7 @@ button { font: inherit; }
 .ship-deck { position: absolute; z-index: 3; left: 50%; bottom: calc(2% + var(--power, 0) * 48px); width: 128px; height: 110px; transform: translateX(-50%); }
 .math-ship { position: relative; width: 100%; height: 100%; filter: drop-shadow(0 0 10px rgba(57,223,255,.65)); animation: ship-hover 1.7s ease-in-out infinite; }
 .math-ship svg { position: absolute; inset: 8px 0 0; width: 100%; height: 86px; }
-.math-ship svg.ship-flame { position: absolute; left: 50%; top: 64px; right: auto; bottom: auto; width: calc(75px + var(--power, 0) * 150px); height: calc(37px + var(--power, 0) * 42px); transform: translateX(-50%); filter: drop-shadow(0 0 8px #ff743f); animation: flame-flicker .19s ease-in-out infinite alternate; }
+.math-ship svg.ship-flame { position: absolute; left: 50%; top: 64px; right: auto; bottom: auto; width: calc(75px + var(--power, 0) * 150px); height: calc(37px + var(--power, 0) * 42px); margin-left: calc(-37.5px - var(--power, 0) * 75px); transform-box: border-box; transform-origin: 50% 0; filter: drop-shadow(0 0 8px #ff743f); animation: flame-flicker .19s ease-in-out infinite alternate; }
 .math-game-over { position: absolute; z-index: 10; inset: 22% 12% 22%; padding: 22px 16px; border: 4px solid #ff5a5f; border-radius: 18px 26px 15px 22px; background: rgba(10, 16, 39, .94); color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; box-shadow: 0 0 30px rgba(255,90,95,.45); }
 .math-game-over strong { color: #ff6d72; font-family: "Avenir Next Rounded", "Trebuchet MS", sans-serif; font-size: clamp(30px, 9vw, 48px); text-shadow: 0 3px 0 #441b2a; }
 .math-game-over span { font-size: 17px; font-weight: 850; }
@@ -596,7 +596,7 @@ button { font: inherit; }
 .math-controls button { flex: 0 0 auto; min-height: 42px; padding: 0 10px; border: 2px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); font-size: 12px; font-weight: 850; cursor: pointer; }
 @keyframes math-stars-drift { from { background-position: 12px 5px, 48px 33px; } to { background-position: 12px 150px, 48px 183px; } }
 @keyframes ship-hover { 0%,100% { translate: 0 0; } 50% { translate: 0 -5px; } }
-@keyframes flame-flicker { from { transform: translateX(-50%) scale(1, .97); opacity: .85; } to { transform: translateX(-50%) scale(.97, 1.03); opacity: 1; } }
+@keyframes flame-flicker { from { transform: scale(1, .97); opacity: .85; } to { transform: scale(.97, 1.03); opacity: 1; } }
 @keyframes laser-shot {
   0% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--shot-angle)) translateX(0) scaleX(.35); }
   12% { opacity: 1; }
