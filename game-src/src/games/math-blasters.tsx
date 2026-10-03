@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { FallingTapper, type TapTarget, type Wave } from "../engines/FallingTapper";
 import { GameShell } from "../shell/GameShell";
 import { useContent } from "../content/ContentContext";
+import { AUDIO_CACHE_BUST } from "../content/word-bank";
 import type { MathSet } from "../content/packs";
 import type { GameContext } from "./types";
 
@@ -135,7 +136,7 @@ export function MathBlastersGame({ coins, onBack, onOpenShop, onRecord, awardBon
     const problem = problemRef.current;
     if (!problem) return null;
     const op = problem.operator === "+" ? "plus" : "minus";
-    return `content/audio/math/${problem.left}-${op}-${problem.right}-equals-${problem.answer}.mp3`;
+    return `content/audio/math/${problem.left}-${op}-${problem.right}-equals-${problem.answer}.mp3?v=${AUDIO_CACHE_BUST}`;
   }, []);
 
   const recordProblem = useCallback((correct: boolean) => {

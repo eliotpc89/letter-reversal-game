@@ -3,6 +3,19 @@ import type { GameState } from "../api";
 import type { PracticeGameId } from "../api";
 import type { BonusWordsPack, PhonicsCorePack, TrickWordsPack } from "./packs";
 
+/**
+ * Cache-buster for every clip under content/audio/. The clip player fetches
+ * with cache:"force-cache", so a re-recorded clip keeps playing the stale
+ * cached bytes until this version changes. Bump it whenever any clip is
+ * re-recorded.
+ */
+export const AUDIO_CACHE_BUST = "2026-10-03";
+
+/** Full playable URL for a word clip, with the cache-buster. */
+export function wordAudioUrl(word: string): string {
+  return `content/audio/${word}.mp3?v=${AUDIO_CACHE_BUST}`;
+}
+
 export type Vowel = "o" | "u";
 export type PracticeWord = { word: string; vowel: Vowel; vowelIndex: number; audio: string };
 export type TrickWord = { word: string; audio: string };
@@ -23,7 +36,7 @@ export type WordBank = {
 };
 
 function toPracticeWord(word: string, vowel: Vowel): PracticeWord {
-  return { word, vowel, vowelIndex: word.indexOf(vowel), audio: `content/audio/${word}.mp3` };
+  return { word, vowel, vowelIndex: word.indexOf(vowel), audio: wordAudioUrl(word) };
 }
 
 /**
@@ -60,13 +73,13 @@ export function buildTrickWordPacks(pack: TrickWordsPack): TrickWordPack[] {
   return pack.packs.map((entry) => ({
     id: entry.id,
     label: entry.label,
-    words: entry.words.map((word) => ({ word, audio: `content/audio/${word}.mp3` })),
+    words: entry.words.map((word) => ({ word, audio: wordAudioUrl(word) })),
   }));
 }
 
 /** Bonus-letter pairs: the correct spelling and its decoy. */
 export function buildBonusWords(pack: BonusWordsPack): BonusWord[] {
-  return pack.pairs.map(([word, fake]) => ({ word, fake, audio: `content/audio/${word}.mp3` }));
+  return pack.pairs.map(([word, fake]) => ({ word, fake, audio: wordAudioUrl(word) }));
 }
 
 export function practiceStat(state: GameState | undefined, gameId: PracticeGameId) {
