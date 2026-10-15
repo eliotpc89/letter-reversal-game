@@ -704,3 +704,8 @@ html.arcade-locked:not(.math-fullscreen) body .hatch-space-root {
   .typing-keyboard button { min-height: 49px; font-size: 23px; }
   .typing-word span { width: min(15vw, 50px); }
 }
+
+/* Math set selection: visible toggles and a touch-friendly start action. */
+.word-choices button[aria-pressed="true"] { background: #b8f5cc; outline: 3px solid #187345; outline-offset: 2px; }
+.math-set-controls button { padding: 12px 20px; min-height: 48px; border: 3px solid var(--text); border-radius: 14px; background: var(--yellow); color: #14213d; font: inherit; font-weight: 800; cursor: pointer; }
+.math-set-controls button:disabled { opacity: .5; cursor: default; }

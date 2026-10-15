@@ -73,13 +73,17 @@ function setBlurb(set: MathSet): string {
  * engine adds pause/resume on top.
  *
  * Problems come from the selected content-pack set, not a random generator:
- * pick a set (e.g. +4) and every wave draws from that set's problems,
+ * pick one or more sets and every wave draws from their combined problems,
  * reshuffling when the deck runs out.
  */
 export function MathBlastersGame({ coins, onBack, onOpenShop, onRecord, awardBonus, state, focusMissed }: GameContext) {
   const { mathBlaster } = useContent();
-  const [setId, setSetId] = useState<string | null>(null);
-  const set = mathBlaster.sets.find((candidate) => candidate.id === setId) ?? null;
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [playing, setPlaying] = useState(false);
+  const selectedSets = useMemo(() => mathBlaster.sets.filter((candidate) => selectedIds.includes(candidate.id)), [mathBlaster.sets, selectedIds]);
+  const selectionKey = selectedSets.map((set) => set.id).join(",");
+  const selectionLabel = selectedSets.map((set) => set.label).join(", ");
+  const toggleSet = (id: string) => setSelectedIds((ids) => ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id]);
   const problemRef = useRef<MathProblem | null>(null);
   const deckRef = useRef<{ key: string; problems: MathProblem[]; index: number } | null>(null);
 
@@ -100,12 +104,16 @@ export function MathBlastersGame({ coins, onBack, onOpenShop, onRecord, awardBon
   }, [focusMissed, state]);
 
   const makeWave = useCallback((round: number): Wave => {
-    const active = set;
-    if (!active) throw new Error("Math Blasters wave with no set selected");
-    const deckKey = `${active.id}:${focusProblems ? "missed" : "all"}`;
+    if (!selectedSets.length) throw new Error("Math Blasters wave with no sets selected");
+    const matchingMisses = focusProblems?.filter((problem) => selectedSets.some((set) =>
+      problem.operator === set.operator && problem.right === set.operand &&
+      problem.left >= (set.operator === "+" ? 0 : set.operand) &&
+      problem.left <= (set.operator === "+" ? set.max - set.operand : set.max)
+    ));
+    const deckKey = `${selectionKey}:${focusProblems ? "missed" : "all"}`;
     let deck = deckRef.current;
     if (!deck || deck.key !== deckKey) {
-      deck = { key: deckKey, problems: focusProblems ?? problemsForSet(active), index: 0 };
+      deck = { key: deckKey, problems: shuffled(matchingMisses?.length ? matchingMisses : selectedSets.flatMap(problemsForSet)), index: 0 };
       deckRef.current = deck;
     }
     if (deck.index >= deck.problems.length) {
@@ -124,7 +132,7 @@ export function MathBlastersGame({ coins, onBack, onOpenShop, onRecord, awardBon
         good: value === problem.answer,
       })),
     };
-  }, [set, focusProblems]);
+  }, [selectedSets, selectionKey, focusProblems]);
 
   const wrongFeedback = useCallback((_wave: Wave, target: TapTarget) => {
     const problem = problemRef.current;
@@ -144,7 +152,7 @@ export function MathBlastersGame({ coins, onBack, onOpenShop, onRecord, awardBon
     return problem ? onRecord(correct, { problem: problemLabel(problem) }) : onRecord(correct);
   }, [onRecord]);
 
-  if (!set) {
+  if (!playing) {
     const groups: Array<[string, MathSet[]]> = [
       ["Adding", mathBlaster.sets.filter((candidate) => candidate.operator === "+")],
       ["Take away", mathBlaster.sets.filter((candidate) => candidate.operator === "−")],
@@ -152,13 +160,19 @@ export function MathBlastersGame({ coins, onBack, onOpenShop, onRecord, awardBon
     return (
       <GameShell variant="math" eyebrow="Math Blasters" title="Pick your blast!" coins={coins} onBack={onBack} onOpenShop={onOpenShop}>
         <main className="practice-main">
+          <section className="practice-stage math-set-controls" aria-label="Practice selection" style={{ marginBottom: 14 }}>
+            <p>Pick one or more sets, then start your blast!</p>
+            <button type="button" onClick={() => setSelectedIds(mathBlaster.sets.filter((set) => set.operator === "+" && set.operand >= 1 && set.operand <= 5).map((set) => set.id))}>Select +1 through +5</button>
+            <p role="status">{selectedSets.length ? `Selected: ${selectionLabel}` : "No sets selected yet"}</p>
+            <button type="button" disabled={!selectedSets.length} onClick={() => { deckRef.current = null; setPlaying(true); }}>Start blast!</button>
+          </section>
           {groups.map(([title, sets]) => sets.length === 0 ? null : (
             <section key={title} className="practice-stage" aria-label={`${title} problem sets`} style={{ marginBottom: 14 }}>
               <p className="round-count">{title}</p>
               <div className="word-choices">
                 {sets.map((candidate) => (
-                  <button key={candidate.id} type="button" onClick={() => setSetId(candidate.id)} aria-label={`Play ${candidate.label}, ${setBlurb(candidate)}`}>
-                    <span>{candidate.label}</span>
+                  <button key={candidate.id} type="button" onClick={() => toggleSet(candidate.id)} aria-pressed={selectedIds.includes(candidate.id)} aria-label={`Select ${candidate.label}, ${setBlurb(candidate)}`}>
+                    <span>{selectedIds.includes(candidate.id) ? "✓ " : ""}{candidate.label}</span>
                     <b style={{ display: "block", fontSize: 14 }}>{setBlurb(candidate)}</b>
                   </button>
                 ))}
@@ -171,8 +185,8 @@ export function MathBlastersGame({ coins, onBack, onOpenShop, onRecord, awardBon
   }
 
   return <FallingTapper
-    key={`${set.id}${focusMissed ? "-missed" : ""}`}
-    shell={{ variant: "math", eyebrow: "Math Blasters", title: `Blast it! ${set.label}${focusProblems ? " — missed focus" : ""}`, coins, onBack: () => setSetId(null), onOpenShop, fullscreenClass: "math-fullscreen" }}
+    key={`${selectionKey}${focusMissed ? "-missed" : ""}`}
+    shell={{ variant: "math", eyebrow: "Math Blasters", title: `Blast it! ${selectionLabel}${focusProblems ? " — missed focus" : ""}`, coins, onBack: () => setPlaying(false), onOpenShop, fullscreenClass: "math-fullscreen" }}
     promptKicker="Solve it!"
     introFeedback="Blast the answer before it reaches your ship!"
     nextWaveFeedback="Choose the answer and fire!"
