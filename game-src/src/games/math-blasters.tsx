@@ -162,7 +162,6 @@ export function MathBlastersGame({ coins, onBack, onOpenShop, onRecord, awardBon
         <main className="practice-main">
           <section className="practice-stage math-set-controls" aria-label="Practice selection" style={{ marginBottom: 14 }}>
             <p>Pick one or more sets, then start your blast!</p>
-            <button type="button" onClick={() => setSelectedIds(mathBlaster.sets.filter((set) => set.operator === "+" && set.operand >= 1 && set.operand <= 5).map((set) => set.id))}>Select +1 through +5</button>
             <p role="status">{selectedSets.length ? `Selected: ${selectionLabel}` : "No sets selected yet"}</p>
             <button type="button" disabled={!selectedSets.length} onClick={() => { deckRef.current = null; setPlaying(true); }}>Start blast!</button>
           </section>

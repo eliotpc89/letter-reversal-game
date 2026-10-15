@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useLayoutEffect, type ReactNode } from "react";
 import { CoinIcon, GamesIcon } from "../icons";
 import { useScrollLock } from "./useScrollLock";
 
@@ -38,8 +38,8 @@ export function GameShell({
   fullscreenClass,
   children,
 }: GameShellProps) {
-  useScrollLock();
-  useEffect(() => {
+  useScrollLock(fullscreenClass);
+  useLayoutEffect(() => {
     if (!fullscreenClass) return;
     document.documentElement.classList.add(fullscreenClass);
     document.body.classList.add(fullscreenClass);
