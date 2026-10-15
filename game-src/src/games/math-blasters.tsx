@@ -104,16 +104,11 @@ export function MathBlastersGame({ coins, onBack, onOpenShop, onRecord, awardBon
   }, [focusMissed, state]);
 
   const makeWave = useCallback((round: number): Wave => {
-    if (!selectedSets.length) throw new Error("Math Blasters wave with no sets selected");
-    const matchingMisses = focusProblems?.filter((problem) => selectedSets.some((set) =>
-      problem.operator === set.operator && problem.right === set.operand &&
-      problem.left >= (set.operator === "+" ? 0 : set.operand) &&
-      problem.left <= (set.operator === "+" ? set.max - set.operand : set.max)
-    ));
+    if (!selectedSets.length && !focusProblems) throw new Error("Math Blasters wave with no sets selected");
     const deckKey = `${selectionKey}:${focusProblems ? "missed" : "all"}`;
     let deck = deckRef.current;
     if (!deck || deck.key !== deckKey) {
-      deck = { key: deckKey, problems: shuffled(matchingMisses?.length ? matchingMisses : selectedSets.flatMap(problemsForSet)), index: 0 };
+      deck = { key: deckKey, problems: shuffled(focusProblems ?? selectedSets.flatMap(problemsForSet)), index: 0 };
       deckRef.current = deck;
     }
     if (deck.index >= deck.problems.length) {
@@ -152,7 +147,7 @@ export function MathBlastersGame({ coins, onBack, onOpenShop, onRecord, awardBon
     return problem ? onRecord(correct, { problem: problemLabel(problem) }) : onRecord(correct);
   }, [onRecord]);
 
-  if (!playing) {
+  if (!playing && !focusProblems) {
     const groups: Array<[string, MathSet[]]> = [
       ["Adding", mathBlaster.sets.filter((candidate) => candidate.operator === "+")],
       ["Take away", mathBlaster.sets.filter((candidate) => candidate.operator === "−")],
@@ -185,7 +180,7 @@ export function MathBlastersGame({ coins, onBack, onOpenShop, onRecord, awardBon
 
   return <FallingTapper
     key={`${selectionKey}${focusMissed ? "-missed" : ""}`}
-    shell={{ variant: "math", eyebrow: "Math Blasters", title: `Blast it! ${selectionLabel}${focusProblems ? " — missed focus" : ""}`, coins, onBack: () => setPlaying(false), onOpenShop, fullscreenClass: "math-fullscreen" }}
+    shell={{ variant: "math", eyebrow: "Math Blasters", title: focusProblems ? "Blast it! Missed questions" : `Blast it! ${selectionLabel}`, coins, onBack: focusProblems ? onBack : () => setPlaying(false), onOpenShop, fullscreenClass: "math-fullscreen" }}
     promptKicker="Solve it!"
     introFeedback="Blast the answer before it reaches your ship!"
     nextWaveFeedback="Choose the answer and fire!"
