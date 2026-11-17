@@ -52,6 +52,8 @@ export type MathSet = {
   operator: MathOperator;
   operand: number;
   max: number;
+  /** Exact worksheet facts: [left, right]; overrides generated ranges. */
+  problems?: [number, number][];
 };
 export type MathBlasterPack = {
   id: "math-blaster";

@@ -24,6 +24,10 @@ function shuffled<T>(values: readonly T[]): T[] {
  * - "−": every x − operand for x in operand..max; max is the top minuend.
  */
 function problemsForSet(set: MathSet): MathProblem[] {
+  if (set.problems) return shuffled(set.problems.map(([left, right]) => ({
+    left, right, operator: set.operator,
+    answer: set.operator === "+" ? left + right : left - right,
+  })));
   const list: MathProblem[] = [];
   if (set.operator === "+") {
     for (let x = 0; x <= set.max - set.operand; x++) {
@@ -62,6 +66,7 @@ function parseProblemLabel(label: string): MathProblem | null {
 }
 
 function setBlurb(set: MathSet): string {
+  if (set.problems) return `${set.problems.length} subtraction facts`;
   return set.operator === "+" ? `answers up to ${set.max}` : `take away, up to ${set.max}`;
 }
 
@@ -138,6 +143,8 @@ export function MathBlastersGame({ coins, onBack, onOpenShop, onRecord, awardBon
   const wrongAudio = useCallback((_wave: Wave, target: TapTarget) => {
     const problem = problemRef.current;
     if (!problem) return null;
+    // New worksheet facts without recordings still use visual correction.
+    if (problem.operator === "−" && (problem.right === 0 || problem.right > 3 || (problem.right < 3 && problem.left > 10))) return null;
     const op = problem.operator === "+" ? "plus" : "minus";
     return `content/audio/math/${problem.left}-${op}-${problem.right}-equals-${problem.answer}.mp3?v=${AUDIO_CACHE_BUST}`;
   }, []);
@@ -150,7 +157,7 @@ export function MathBlastersGame({ coins, onBack, onOpenShop, onRecord, awardBon
   if (!playing && !focusProblems) {
     const groups: Array<[string, MathSet[]]> = [
       ["Adding", mathBlaster.sets.filter((candidate) => candidate.operator === "+")],
-      ["Take away", mathBlaster.sets.filter((candidate) => candidate.operator === "−")],
+      ["School subtraction sheet", mathBlaster.sets.filter((candidate) => candidate.operator === "−")],
     ];
     return (
       <GameShell variant="math" eyebrow="Math Blasters" title="Pick your blast!" coins={coins} onBack={onBack} onOpenShop={onOpenShop}>

@@ -1,5 +1,5 @@
 {
-  "version": 6,
+  "version": 7,
   "packs": [
     {
       "id": "phonics-core",
@@ -24,7 +24,7 @@
     {
       "id": "math-blaster",
       "file": "math-blaster.json",
-      "version": 2
+      "version": 3
     }
   ]
 }
