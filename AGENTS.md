@@ -68,9 +68,23 @@ Implemented in `scripts/generate_batch_audio.py`. Do not hand-split.
 - Write clips to BOTH `game-src/public/content/audio/…` and the built
   `docs/content/audio/…` (or rebuild), and verify the mirrors match.
 
-### Reference run (Nov 17 2026)
+### Status: EAR-APPROVED (Eliot, Nov 17 2026 — "All sound perfect")
+
+Work in batches of ~7–8 facts per TTS call. That size was tested first
+(batch of 8), ear-approved, and only then used for the full run.
+
+### Reference runs (Nov 17 2026)
 
 Test batch of 8 subtraction facts (12−9 … 5−5), voice `marin`,
 `gpt-4o-mini-tts`: take 5 accepted — 19 raw segments (9 separators,
 one fact split mid-pause and merged, sacrificial duplicate present),
-8/8 clips passed static checks, durations 1.98–2.21 s.
+8/8 clips passed static checks, durations 1.98–2.21 s. Eliot ear-checked
+all 8 in chat: perfect.
+
+Full run the same night: the remaining 50 subtraction facts in 7 batches
+of 7 + 1 single. One batch's first take failed the split (14 segments)
+and was regenerated — the fail-the-take gate working as designed.
+49/50 passed static checks outright; the one flag, 8−8=0 at 2.66 s, was
+just over the 2.6 s duration cap with a clean peak/tail — the cap is a
+flag to listen, not a defect. All 58 facts (test 8 + rest 50) re-recorded
+this way, durations ~1.9–2.6 s vs the old single-call batch's 0.57–1.45 s.
