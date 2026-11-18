@@ -26,6 +26,7 @@ GAME_SRC = ROOT / "game-src"
 AUDIO_ROOT = GAME_SRC / "public/content/audio"
 LETTER_ROOT = GAME_SRC / "src/assets/letters"
 PACK_PATH = GAME_SRC / "public/content/manifest.json"
+MATH_PACK = GAME_SRC / "public/content/packs/math-blaster.json"
 PHONICS_PACK = GAME_SRC / "public/content/packs/phonics-core.json"
 REVIEW_ROOT = ROOT / "audio-review"
 PREVIEW_ASSETS = REVIEW_ROOT / "assets/game-src"
@@ -49,6 +50,16 @@ def word_list() -> list[str]:
     return sorted(set(pack["shortO"]) | set(pack["shortU"]))
 
 
+def worksheet_audio_paths() -> list[pathlib.Path]:
+    pack = json.loads(MATH_PACK.read_text(encoding="utf-8"))
+    return sorted({
+        AUDIO_ROOT / "math" / f"{left}-minus-{right}-equals-{left - right}.mp3"
+        for problem_set in pack["sets"]
+        if problem_set["operator"] == "−"
+        for left, right in problem_set.get("problems", [])
+    })
+
+
 def expected_speech(path: pathlib.Path) -> str:
     if path.parent == LETTER_ROOT:
         stem = path.stem
@@ -67,7 +78,7 @@ def call_tts(key: str, speech: str, destination: pathlib.Path) -> None:
             "input": speech,
             "response_format": "mp3",
             "instructions": (
-                "Say only the supplied word or short label once, in a clear, "
+                "Say only the supplied text once, in a clear, "
                 "neutral General American accent for a child's phonics game. "
                 "Do not spell it, introduce it, explain it, or add other sounds. "
                 "Use a natural, gently measured pace. For letter names, pronounce "
@@ -196,9 +207,12 @@ def main() -> int:
     assets = sorted(LETTER_ROOT.glob("*.mp3"))
     for word in word_list():
         assets.append(AUDIO_ROOT / f"{word}.mp3")
+    assets.extend(worksheet_audio_paths())
+    if os.environ.get("AUDIO_SCOPE") == "new":
+        assets = [path for path in assets if not path.is_file()]
     if not assets:
-        print("No source MP3 files found", file=sys.stderr)
-        return 2
+        print("No missing source MP3 files")
+        return 0
     for root in (PREVIEW_ASSETS,):
         root.mkdir(parents=True, exist_ok=True)
     rows: list[dict[str, object]] = []
