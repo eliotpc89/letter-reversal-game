@@ -9,7 +9,7 @@ import type { BonusWordsPack, PhonicsCorePack, TrickWordsPack } from "./packs";
  * cached bytes until this version changes. Bump it whenever any clip is
  * re-recorded.
  */
-export const AUDIO_CACHE_BUST = "2026-10-03-cop";
+export const AUDIO_CACHE_BUST = "2026-11-17-batch";
 
 /** Full playable URL for a word clip, with the cache-buster. */
 export function wordAudioUrl(word: string): string {
