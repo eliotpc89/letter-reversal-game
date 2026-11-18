@@ -135,6 +135,14 @@ export function validateMathBlaster(pack: unknown): string[] {
     if (set.operator !== "+" && set.operator !== "−") errors.push(`${where}.operator must be "+" or "−"`);
     if (!Number.isInteger(set.operand) || (set.operand as number) < 1) errors.push(`${where}.operand must be a positive integer`);
     if (!Number.isInteger(set.max) || (set.max as number) < 1) errors.push(`${where}.max must be a positive integer`);
+    if (set.problems !== undefined) {
+      if (!Array.isArray(set.problems) || set.problems.length === 0) errors.push(`${where}.problems must be a non-empty array`);
+      else for (const pair of set.problems) {
+        if (!Array.isArray(pair) || pair.length !== 2 || !pair.every((n) => Number.isInteger(n) && n >= 0) || (set.operator === "−" && pair[1] > pair[0])) {
+          errors.push(`${where}.problems must contain nonnegative [left, right] facts without negative answers`);
+        }
+      }
+    }
     if (Number.isInteger(set.operand) && Number.isInteger(set.max) && (set.max as number) < (set.operand as number)) {
       errors.push(`${where}.max must be at least operand, or the set has no problems`);
     }
